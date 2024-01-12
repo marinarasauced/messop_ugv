@@ -67,11 +67,14 @@ Communication ended
 ##################################################################################
 
 class calibrationUGV():
-    def __init__(self, c1, c2, c3, c4):
+    def __init__(self, c1, c2, c3, c4, c5, c6, c7):
         self.c1 = c1    # Value to zero heading in viconCallback()
         self.c2 = c2    # True initial heading added in viconCallback() and odometryCallback()
         self.c3 = c3    # True initial x-position added in odometryCallback()
         self.c4 = c4    # True initial y-position added in odometryCallback()
+        self.c5 = c5    # Odometry Tx calibration parameter using viconCallback() truth
+        self.c6 = c6    # Odometry Ty calibration parameter using viconCallback() truth
+        self.c7 = c7    # Odometry Rz calibration parameter using viconCallback() truth
 
 class stateUGV():
     def __init__(self, Tx, Ty, Rz):
@@ -132,14 +135,16 @@ def viconCallback(data):
 
 # Calibrate onboard Odometry using VICON pose:
 def calibrateOdometry():
-    calibration.c5 = 1
+    calibration.c5 = globalCurr.Tx - globalTemp.Tx
+    calibration.c6 = globalCurr.Ty - globalTemp.Ty
+    calibration.c7 = globalCurr.Rz - globalTemp.Rz
 
 # Store state from onboard Odometry:
 def odometryCallback(data):
     msgType = "Odometry"
-    globalTemp.Tx = data.pose.pose.position.x + calibration.c3
-    globalTemp.Ty = data.pose.pose.position.y + calibration.c4
-    globalTemp.Rz = getHeading(data, msgType) + calibration.c2
+    globalTemp.Tx = data.pose.pose.position.x + calibration.c3 + calibration.c5
+    globalTemp.Ty = data.pose.pose.position.y + calibration.c4 + calibration.c6
+    globalTemp.Rz = getHeading(data, msgType) + calibration.c2 + calibration.c7
     globalTemp.Rz = wrapHeading(globalTemp.Rz)
 
     # Update timer:
