@@ -31,7 +31,6 @@ MAX_TIME_OCCLUDED = 1.0     # sec
 K_P = 3.8046    # P gain for local y-error
 K_D = 2.3779    # D gain for heading error
 
-
 ##################################################################################
 
 MSG01 = """
