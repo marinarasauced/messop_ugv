@@ -1,30 +1,36 @@
 #!/usr/bin/env python
 
 import rospy
-from std_msgs.msg import Bool
-from geometry_msgs.msg import Point
-from geometry_msgs.msg import Twist
-from geometry_msgs.msg import TransformStamped
-from turtlebot3_messop.msg import VertexTurtleBot3
+from nav_msgs.msg import Odometry
+from geometry_msgs.msg import Point, TransformStamped, Twist
+from turtlebot3_messop.msg import MESS2UGV
 import numpy as np
 import math
 import time
 
 ##################################################################################
 
-BURGER_MAX_LIN_VEL = 0.22
-BURGER_MAX_ANG_VEL = 2.84
+# Object name in VICON Tracker:
+UGV_NAME = "Turtle01"
 
-R_MAX_LIN_VEL = 0.5
-R_MAX_ANG_VEL = 0.3
+# Hardware specifications for a TurtleBot3 Burger:
+UGV_MAX_LIN_VEL = 0.22      # m/s
+UGV_MAX_ANG_VEL = 2.84      # rad/s
 
-POSX_ERR_TOLERANCE = 0.01
-POSY_ERR_TOLERANCE = 0.01
-ROTZ_ERR_TOLERANCE = 0.01
+# User-defined limiting ratios:
+R_LIN = 0.5
+R_ANG = 0.3
 
-K_P1 = 2.3779
-K_P2 = 3.8046
-K_D = 7.0250
+# User-defined error tolerances:
+TX_ERROR_TOLERANCE = 0.01   # m
+TY_ERROR_TOLERANCE = 0.01   # m
+RZ_ERROR_TOLERANCE = 0.01   # rad
+MAX_TIME_OCCLUDED = 1.0     # sec
+
+# User-defined control gains:
+K_P = 3.8046    # P gain for local y-error
+K_D = 2.3779    # D gain for heading error
+
 
 ##################################################################################
 
@@ -44,13 +50,14 @@ Calibration complete
 """
 
 MSG04 = """
-Waiting for next vertex
+Waiting for vertex from MESS
 """
 
 MSG05 = """
 Invalid operation index ...
-    {1} Rotate towards input point then transition
-    {2} Rotate towards input heading
+    1: Rotate towards heading Rz
+    2: Rotate towards (Tx,Ty), then transition to (Tx,Ty)
+    3: Rotate towards (Tx,Ty), transition to (Tx,Ty), then rotate towards Rz
 """
 
 MSG06 = """
@@ -59,166 +66,233 @@ Communication ended
 
 ##################################################################################
 
-class stateTurtleBot3():
-    def __init__(self, Tx, Ty, Rz, Op):
+class calibrationUGV():
+    def __init__(self, c1, c2, c3, c4):
+        self.c1 = c1    # Value to zero heading in viconCallback()
+        self.c2 = c2    # True initial heading added in viconCallback() and odometryCallback()
+        self.c3 = c3    # True initial x-position added in odometryCallback()
+        self.c4 = c4    # True initial y-position added in odometryCallback()
+
+class stateUGV():
+    def __init__(self, Tx, Ty, Rz):
         self.Tx = Tx
         self.Ty = Ty
         self.Rz = Rz
-        self.op = Op
 
-class offsetTurtleBot3():
-    def __init__(self, Rz):
-        self.Rz = Rz
+class timeUGV():
+    def __init__(self, vicon, odometry, calibration):
+        self.calibration = calibration
+        self.vicon = vicon
+        self.odometry = odometry
 
 ##################################################################################
 
+# Calculate heading:
+def getHeading(data, msgType):
+
+    # Retrieve quaternion components from a TransformStamped message and calculate heading:
+    if msgType == "TransformStamped":
+        x = data.transform.rotation.x
+        y = data.transform.rotation.y
+        z = data.transform.rotation.z
+        w = data.transform.rotation.w
+        Psi = math.atan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.c1 + calibration.c2
+
+    # Retrieve quaternion components from a Odometry message and calculate heading:        
+    elif msgType == "Odometry":
+        x = data.pose.pose.orientation.x
+        y = data.pose.pose.orientation.y
+        z = data.pose.pose.orientation.z
+        w = data.pose.pose.orientation.w
+        Psi = math.atan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) + calibration.c2
+   
+    return Psi
+
+# Wrap heading to [-pi, pi] if calibration causes atan2 to exceed bounds:
+def wrapHeading(data):
+    Psi = data
+    while abs(Psi) > math.pi:
+        Psi -= np.sign(Psi) * 2 * math.pi
+
+    return Psi
+
+# Store state from VICON pose:
 def viconCallback(data):
+    msgType = "TransformStamped"
     globalCurr.Tx = data.transform.translation.x
     globalCurr.Ty = data.transform.translation.y
-    globalCurr.Rz = math.atan2(2 * (data.transform.rotation.w * data.transform.rotation.z + data.transform.rotation.x * data.transform.rotation.y), data.transform.rotation.w ** 2 + data.transform.rotation.x ** 2 - data.transform.rotation.y ** 2 - data.transform.rotation.z ** 2) + offsetRz.Rz - initRz.Rz
-    while abs(globalCurr.Rz) > math.pi:
-        globalCurr.Rz -= np.sign(globalCurr.Rz) * 2 * math.pi
+    globalCurr.Rz = getHeading(data, msgType)
+    globalCurr.Rz = wrapHeading(globalCurr.Rz)
 
-##################################################################################
+    # Update timer:
+    timer.vicon = time.time()
 
+    # Calibrate onboard Odometry periodically:
+    calibrateOdometry()
+
+# Calibrate onboard Odometry using VICON pose:
+def calibrateOdometry():
+    calibration.c5 = 1
+
+# Store state from onboard Odometry:
+def odometryCallback(data):
+    msgType = "Odometry"
+    globalTemp.Tx = data.pose.pose.position.x + calibration.c3
+    globalTemp.Ty = data.pose.pose.position.y + calibration.c4
+    globalTemp.Rz = getHeading(data, msgType) + calibration.c2
+    globalTemp.Rz = wrapHeading(globalTemp.Rz)
+
+    # Update timer:
+    timer.odometry = time.time()
+
+    # Check if UGV meets occlusion criteria:
+    if timer.odometry > timer.vicon + MAX_TIME_OCCLUDED:
+        globalCurr.Tx = globalTemp.Tx
+        globalCurr.Ty = globalTemp.Ty
+        globalCurr.Rz = globalTemp.Rz
+
+# Update object with values from other object:
 def updateState(vertex, data):
     vertex.Tx = data.Tx
     vertex.Ty = data.Ty
     vertex.Rz = data.Rz
-    while abs(vertex.Rz) > math.pi:
-        vertex.Rz -= np.sign(vertex.Rz) * 2 * math.pi
-    vertex.Op = data.Op
-
-def updateError():
-
-        # Store necessary vectors:
-        dxA = vertexTrgt.Tx - vertexInit.Tx
-        dyA = vertexTrgt.Ty - vertexInit.Ty
-        A = np.array([[dxA], [dyA]])
-        a = math.sqrt(dxA ** 2 + dyA ** 2)
-        dxB =  vertexTrgt.Tx - globalCurr.Tx
-        dyB =  vertexTrgt.Ty - globalCurr.Ty
-        B = np.array([[dxB], [dyB]])
-        b = math.sqrt(dxB ** 2 + dyB ** 2)
-
-        # Calculate angles between target and current vectors:
-        theta = math.acos(sum(np.multiply(A, B)) / (a * b))
-        psi = math.atan2(dyA, dxA)
-        phi = math.atan2(globalCurr.Ty - vertexInit.Ty, globalCurr.Tx - vertexInit.Tx)
-
-        # Store local error:
-        localError.Tx = a - b * math.cos(theta)
-        localError.Ty = b * math.sin(theta) * np.sign(phi - psi)
-        localError.Rz = psi - globalCurr.Rz
-        while abs(localError.Rz) > math.pi:
-            localError.Rz -= np.sign(localError.Rz) * 2 * math.pi
 
 ##################################################################################
 
-def controlTurtleBot3(uLin, uAng):
+def controlUGV(uLin, uAng):
     twist = Twist()
     twist.linear.x = uLin; twist.linear.y = 0; twist.linear.z = 0
     twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = uAng
 
+    # Wrap linear velocity to ensure maximum value is not exceeded:
+    if abs(twist.linear.x) > UGV_MAX_LIN_VEL * R_LIN:
+        twist.linear.x = np.sign(uLin) * UGV_MAX_LIN_VEL * R_LIN
+
+    # Wrap angular velocity to ensure maximum value is not exceeded:
+    if abs(twist.angular.z) > UGV_MAX_ANG_VEL * R_ANG:
+        twist.angular.z = np.sign(uAng) * UGV_MAX_ANG_VEL * R_ANG
+
     u.publish(twist)
 
-def calibrateTurtleBot3():
-    
-    # Assign init point:
-    rospy.wait_for_message("/vicon/TurtleBot01/TurtleBot01", TransformStamped)
+def calibrateUGV():
+
+    # Wait for message to ensure callback function is receiving from vicon_bridge:
+    rospy.wait_for_message(viconTopic, TransformStamped)
+
+    # Store initial point:
     viconP1 = Point()
     viconP1.x = globalCurr.Tx
-    viconP1.x = globalCurr.Ty
+    viconP1.y = globalCurr.Ty
 
     # Translate linearly in the body-fixed x-direction for one second:
-    uLin = R_MAX_LIN_VEL * BURGER_MAX_LIN_VEL
-    uAng = 0.0
-    then = time.time()
-    while time.time() < then + 1:
-        controlTurtleBot3(uLin, uAng)
-
-    # Assign term point:
+    uLin = R_LIN * UGV_MAX_LIN_VEL; uAng = 0.0
+    timer.calibration = time.time()
+    while time.time() < timer.calibration + 1:
+        controlUGV(uLin, uAng)
+    
+    # Store terminal point:
     viconP2 = Point()
     viconP2.x = globalCurr.Tx
     viconP2.y = globalCurr.Ty
-
-    # Initial heading of TurtleBot3 in the VICON coordinate frame:
+    
+    # Calculate true initial heading:
     dx = viconP2.x - viconP1.x
     dy = viconP2.y - viconP1.y
-    offsetRz.Rz = math.atan2(dy, dx)
+    calibration.c2 = math.atan2(dy, dx)
+    calibration.c3 = viconP2.x
+    calibration.c4 = viconP2.y
 
-def rotateTurtleBot3(psi):
-    rospy.wait_for_message("/vicon/TurtleBot01/TurtleBot01", TransformStamped)
-    errorRz = psi - globalCurr.Rz
-    while abs(errorRz) > ROTZ_ERR_TOLERANCE:
+def rotateUGV(psi):
+    while abs(globalCurr.Rz - psi) > RZ_ERROR_TOLERANCE:
+        
+        # Control inputs:
+        uLin = 0.0; uAng = UGV_MAX_ANG_VEL * R_ANG * (psi - globalCurr.Rz)
+        controlUGV(uLin, uAng)
 
-        # Publish control inputs:
-        uLin = 0.0
-        uAng = R_MAX_ANG_VEL * BURGER_MAX_ANG_VEL * errorRz
-        if abs(uAng) > R_MAX_ANG_VEL * BURGER_MAX_ANG_VEL:
-            uAng = np.sign(uAng) * R_MAX_ANG_VEL * BURGER_MAX_ANG_VEL
-        controlTurtleBot3(uLin, uAng)
+def translateUGV():
+    while abs(localError.Tx) > TX_ERROR_TOLERANCE or abs(localError.Ty) > TY_ERROR_TOLERANCE:
 
-        # Update rotation error:
-        errorRz = psi - globalCurr.Rz
+        # Store vectors to update local error:
+        A = np.array([[vertexTrgt.Tx - vertexInit.Tx], [vertexTrgt.Ty - vertexInit.Ty]])
+        B = np.array([[vertexTrgt.Tx - globalCurr.Tx], [vertexTrgt.Ty - globalCurr.Ty]])
+        C = np.array([[globalCurr.Tx - vertexInit.Tx], [globalCurr.Ty - vertexInit.Ty]])
+        a = math.sqrt(A[0, 0] ** 2 + A[0, 1] ** 2)
+        b = math.sqrt(B[0, 0] ** 2 + B[0, 1] ** 2)
 
-def translateTurtleBot3():
-    while abs(localError.Tx) > POSX_ERR_TOLERANCE or abs(localError.Ty) > POSY_ERR_TOLERANCE:
+        # Calculate angles necessary to determine update local error:
+        theta = math.acos(sum(np.multiply(A, B)) / (a * b))
+        alpha = math.atan2(C[0, 1], C[0, 0])
+        psi = math.atan2(A[0, 1], A[0, 0])
 
-        # Calculate local error:
-        updateError()
+        # Update local error:
+        localError.Tx = a - b * math.cos(theta)
+        localError.Ty = b * math.sin(theta) * np.sign(alpha - psi)
+        localError.Rz = psi - globalCurr.Rz
+        localError.Rz = wrapHeading(localError.Rz)
 
-        # Publish control inputs:
-        uLin = R_MAX_LIN_VEL * BURGER_MAX_LIN_VEL
-        uAng = -K_P1 * localError.Rz -K_P2 * localError.Ty
-        if abs(uAng) > R_MAX_ANG_VEL * BURGER_MAX_ANG_VEL:
-            uAng = np.sign(uAng) * R_MAX_ANG_VEL * BURGER_MAX_ANG_VEL
-        controlTurtleBot3(uLin, uAng)
+        # Control inputs:
+        uLin = UGV_MAX_LIN_VEL * R_LIN
+        uAng = -K_P * localError.Ty -K_D * localError.Rz
+        controlUGV(uLin, uAng)
 
-def transitionTurtleBot3():
+def transitionUGV():
     while not rospy.is_shutdown():
 
-        # Indicate the TurtleBot3 is waiting for an input vertex: 
+        # Indicate the UGV is waiting for an input vertex:
         print(MSG04)
 
         # Wait for new vertex to be published:
         while vertexInit.Tx == vertexTrgt.Tx and vertexInit.Ty == vertexTrgt.Ty and vertexInit.Rz == vertexTrgt.Rz:
-            vertex = rospy.wait_for_message("vertex", VertexTurtleBot3)
-            updateState(vertexTrgt, vertex)
+            vertex = rospy.wait_for_message("/messop/" + UGV_NAME, MESS2UGV)
+        vertex.Rz = wrapHeading(vertex.Rz)
+        operation = vertex.Op
 
-        # Operation 1. rotation and translation:
-        if vertexTrgt.Op == 1:
+        # Operation one:
+        if operation == 1:
+            
+            # Rotate UGV towards input Rz:
+            rotateUGV(vertexTrgt.Rz)
 
-            # Calculate heading of target point:
+        # Operation two:
+        elif operation == 2:
+
+            # Calculate heading to input (Tx, Ty):
             dx = vertexTrgt.Tx - globalCurr.Tx
             dy = vertexTrgt.Ty - globalCurr.Ty
             psi = math.atan2(dy, dx)
 
-            # Rotate TurtleBot3 to target point:
-            rotateTurtleBot3(psi)
+            # Rotate UGV towards input (Tx, Ty):
+            rotateUGV(psi)
 
-            # Translate TurtleBot3 to target point:
-            updateError()
-            translateTurtleBot3()
+            # Translate UGV to (Tx, Ty):
+            translateUGV()
 
-        # Operation 2. rotation:
-        elif vertexTrgt.Op == 2:
+        # Operation three:
+        elif operation == 3:
 
-            # Rotate TurtleBot3 to target heading:
-            rotateTurtleBot3(vertexTrgt.Rz)
+            # Calculate heading to input (Tx, Ty):
+            dx = vertexTrgt.Tx - globalCurr.Tx
+            dy = vertexTrgt.Ty - globalCurr.Ty
+            psi = math.atan2(dy, dx)
 
-        # Invalid operation input:
+            # Rotate UGV towards input (Tx, Ty):
+            rotateUGV(psi)
+
+            # Translate UGV to (Tx, Ty):
+            translateUGV()
+
+            # Rotate UGV towards input Rz:
+            rotateUGV(vertexTrgt.Rz)
+        
+        # Invalid operation:
         else:
-
-            # Indicate the operation index is invalid:
             print(MSG05)
 
-        # Stop TurtleBot3 from moving:
-        uLin = 0.0
-        uAng = 0.0
-        controlTurtleBot3(uLin, uAng)
+        # Stop the UGV:
+        uLin = 0.0; uAng = 0.0
+        controlUGV(uLin, uAng)
 
-        # Update init vertex and global for next iteration:
+        # Update initial state and vertex for next iteration:
         updateState(vertexInit, vertex)
         updateState(globalInit, globalCurr)
 
@@ -228,43 +302,43 @@ if __name__=="__main__":
 
     # Initialize node:
     rospy.init_node("turtlebot3_messop")
+    viconTopic = "/vicon/" + UGV_NAME + "/" + UGV_NAME
 
-    # Zero initial VICON Rz:
-    viconInit = rospy.wait_for_message("/vicon/TurtleBot01/TurtleBot01", TransformStamped)
-    initRz = offsetTurtleBot3(0.0)
-    initRz.Rz = math.atan2(2 * (viconInit.transform.rotation.w * viconInit.transform.rotation.z + viconInit.transform.rotation.x * viconInit.transform.rotation.y), viconInit.transform.rotation.w ** 2 + viconInit.transform.rotation.x ** 2 - viconInit.transform.rotation.y ** 2 - viconInit.transform.rotation.z ** 2)
-    offsetRz = offsetTurtleBot3(0.0)
+    # Create objects:
+    calibration = calibrationUGV(0.0)       # calibration parameters
+    vertexInit = stateUGV(0.0, 0.0, 0.0)    # input state at start of transition
+    vertexTrgt = stateUGV(0.0, 0.0, 0.0)    # input state at end of transition
+    globalInit = stateUGV(0.0, 0.0, 0.0)    # state of UGV at start of transition
+    globalCurr = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time
+    globalTemp = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time while occluded
+    localError = stateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
+    timer = timeUGV(0.0, 0.0, 0.0)          # time (sec)
 
-    # Create objects for VICON states:
-    vertexInit = stateTurtleBot3(0.0, 0.0, 0.0)
-    globalInit = stateTurtleBot3(0.0, 0.0, 0.0)
-    globalCurr = stateTurtleBot3(0.0, 0.0, 0.0)
-    vertexTrgt = stateTurtleBot3(0.0, 0.0, 0.0)
-    localError = stateTurtleBot3(1.0, 1.0, 1.0)
-    
+    # Zero VICON feedback:
+    viconInit = rospy.wait_for_message(viconTopic, TransformStamped)
+    calibration.c1 = getHeading(viconInit, "TransformStamped")
+
     # Initialize publishers and subscribers:
-    rospy.Subscriber("/vicon/TurtleBot01/TurtleBot01", TransformStamped, viconCallback)
-    u = rospy.Publisher("cmd_vel", Twist, queue_size=10)
-    flag = rospy.Publisher("/turtlebot3/logger", Bool)
+    rospy.Subscriber(viconTopic, TransformStamped, viconCallback)
+    u = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
 
     try:
 
         # Indicate the node is initiated:
         print(MSG01)
 
-        # Indicate the calibration is initiated:
+        # Attempt VICON calibration:
         print(MSG02)
-
-        # Calibrate the TurtleBot3:
-        calibrateTurtleBot3()
-
-        # Indicate the calibration is complete:
+        calibrateUGV()
         print(MSG03)
 
+        # Initialize Odometry subscriber:
+        rospy.Subscriber("/odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
+
+        # Begin vertex navigation:
+        transitionUGV()
+    
     except:
 
-        # Publish flag to shut down logger:
-
-        # Indate the node is shut down:
-        print(MSG05)
-
+        # Indicate the node is shut down:
+        print(MSG06)
