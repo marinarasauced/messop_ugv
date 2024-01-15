@@ -134,9 +134,9 @@ def viconCallback(data):
 
 # Calibrate onboard Odometry using VICON pose:
 def calibrateOdometry():
-    calibration.c5 = globalCurr.Tx - globalTemp.Tx
-    calibration.c6 = globalCurr.Ty - globalTemp.Ty
-    calibration.c7 = globalCurr.Rz - globalTemp.Rz
+    calibration.c5 += globalCurr.Tx - globalTemp.Tx
+    calibration.c6 += globalCurr.Ty - globalTemp.Ty
+    calibration.c7 += globalCurr.Rz - globalTemp.Rz
 
 # Store state from onboard Odometry:
 def odometryCallback(data):
@@ -309,14 +309,14 @@ if __name__=="__main__":
     viconTopic = "/vicon/" + UGV_NAME + "/" + UGV_NAME
 
     # Create objects:
-    calibration = calibrationUGV(0.0)       # calibration parameters
+    calibration = calibrationUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
     vertexInit = stateUGV(0.0, 0.0, 0.0)    # input state at start of transition
     vertexTrgt = stateUGV(0.0, 0.0, 0.0)    # input state at end of transition
     globalInit = stateUGV(0.0, 0.0, 0.0)    # state of UGV at start of transition
     globalCurr = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time
     globalTemp = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time while occluded
     localError = stateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
-    timer = timeUGV(0.0, 0.0, 0.0)          # time (sec)
+    timer = timeUGV(0.0, 0.0)               # time (sec)
 
     # Zero VICON feedback:
     viconInit = rospy.wait_for_message(viconTopic, TransformStamped)
