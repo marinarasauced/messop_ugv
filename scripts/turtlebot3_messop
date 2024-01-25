@@ -305,8 +305,8 @@ def transitionUGV():
 if __name__=="__main__":
 
     # Initialize node:
-    rospy.init_node("turtlebot3_messop")
     viconTopic = "/vicon/" + UGV_NAME + "/" + UGV_NAME
+    rospy.init_node("turtlebot3_messop")
 
     # Create objects:
     calibration = calibrationUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
