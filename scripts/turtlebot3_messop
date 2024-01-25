@@ -11,7 +11,7 @@ import time
 ##################################################################################
 
 # Object name in VICON Tracker:
-UGV_NAME = "Turtle01"
+UGV_NAME = "Turtle01" # Does not work *yet*
 
 # Hardware specifications for a TurtleBot3 Burger:
 UGV_MAX_LIN_VEL = 0.22      # m/s
@@ -316,7 +316,7 @@ if __name__=="__main__":
     globalCurr = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time
     globalTemp = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time while occluded
     localError = stateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
-    timer = timeUGV(0.0, 0.0)               # time (sec)
+    timer = timeUGV(0.0, 0.0, 0.0)          # time (sec)
 
     # Zero VICON feedback:
     viconInit = rospy.wait_for_message(viconTopic, TransformStamped)
