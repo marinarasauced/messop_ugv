@@ -1,4 +1,4 @@
-# turtlebot3_messop
+# messop_ugv
 ## Overview
 This repo contains a ROS Noetic package for a TurtleBot3 that uses VICON feedback to navigate a flat lab environment. The package allows for three operations for time-optimal navigation: 1. a rotation 2. a rotation and then a translation 3. a rotation, a translation, and then a rotation. The target user for this repo is anyone with access to AVMI resources or a VICON system.
 TurtleBot3 navigational package for MQP-RVC2401
