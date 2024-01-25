@@ -1,12 +1,11 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>turtlebot3_messop</name>
+  <name>messop_turtle</name>
   <version>1.0.0</version>
-  <description>The turtlebot3_messop package</description>
-  <url type="website">https://github.com/marinarasauced/turtlebot3_messop</url>
+  <description>The messop_turtle package</description>
+  <url type="website">https://github.com/marinarasauced/messop_turtle</url>
   <maintainer email="mjnelson@wpi.edu">Marina Nelson</maintainer>
-  <author email="jane.doe@example.com">Jane Doe</author>
-  <license>TODO</license>
+  <author email="mjnelson@wpi.edu">Marina Nelson</author>
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>

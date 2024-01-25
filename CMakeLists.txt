@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(turtlebot3_messop)
+project(messop_ugv)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
@@ -11,7 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
-  MESS2UGV.msg
+  MessToUGV.msg
 )
 
 generate_messages(
@@ -30,7 +30,7 @@ include_directories(
 )
 
 catkin_install_python(PROGRAMS
-  scripts/turtlebot3_messop
+  scripts/messop
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

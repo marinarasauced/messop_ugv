@@ -3,7 +3,7 @@
 import rospy
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, TransformStamped, Twist
-from turtlebot3_messop.msg import MESS2UGV
+from messop_ugv.msg import MessToUGV
 import numpy as np
 import math
 import time
