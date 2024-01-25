@@ -247,7 +247,7 @@ def transitionUGV():
 
         # Wait for new vertex to be published:
         while vertexInit.Tx == vertexTrgt.Tx and vertexInit.Ty == vertexTrgt.Ty and vertexInit.Rz == vertexTrgt.Rz:
-            vertex = rospy.wait_for_message("/messop/" + UGV_NAME, MESS2UGV)
+            vertex = rospy.wait_for_message("/messop/" + UGV_NAME, MessToUGV)
         vertex.Rz = wrapHeading(vertex.Rz)
         operation = vertex.Op
 
