@@ -5,13 +5,12 @@ from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, TransformStamped, Twist
 from messop_ugv.msg import MessToUGV
 import numpy as np
-import math
 import time
 
 ##################################################################################
 
 # Object name in VICON Tracker:
-UGV_NAME = "Turtle01" # Does not work *yet*
+UGV_NAME = "TurtleBot01"
 
 # Hardware specifications for a TurtleBot3 Burger:
 UGV_MAX_LIN_VEL = 0.22      # m/s
@@ -98,7 +97,7 @@ def getHeading(data, msgType):
         y = data.transform.rotation.y
         z = data.transform.rotation.z
         w = data.transform.rotation.w
-        Psi = math.atan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.c1 + calibration.c2
+        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.c1 + calibration.c2
 
     # Retrieve quaternion components from a Odometry message and calculate heading:        
     elif msgType == "Odometry":
@@ -106,15 +105,15 @@ def getHeading(data, msgType):
         y = data.pose.pose.orientation.y
         z = data.pose.pose.orientation.z
         w = data.pose.pose.orientation.w
-        Psi = math.atan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) + calibration.c2
+        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) + calibration.c2
    
     return Psi
 
 # Wrap heading to [-pi, pi] if calibration causes atan2 to exceed bounds:
 def wrapHeading(data):
     Psi = data
-    while abs(Psi) > math.pi:
-        Psi -= np.sign(Psi) * 2 * math.pi
+    while abs(Psi) > np.pi:
+        Psi -= np.sign(Psi) * 2 * np.pi
 
     return Psi
 
@@ -202,7 +201,7 @@ def calibrateUGV():
     # Calculate true initial heading:
     dx = viconP2.x - viconP1.x
     dy = viconP2.y - viconP1.y
-    calibration.c2 = math.atan2(dy, dx)
+    calibration.c2 = np.arctan2(dy, dx)
     calibration.c3 = viconP2.x
     calibration.c4 = viconP2.y
 
@@ -220,18 +219,18 @@ def translateUGV():
         A = np.array([[vertexTrgt.Tx - vertexInit.Tx], [vertexTrgt.Ty - vertexInit.Ty]])
         B = np.array([[vertexTrgt.Tx - globalCurr.Tx], [vertexTrgt.Ty - globalCurr.Ty]])
         C = np.array([[globalCurr.Tx - vertexInit.Tx], [globalCurr.Ty - vertexInit.Ty]])
-        a = math.sqrt(A[0, 0] ** 2 + A[0, 1] ** 2)
-        b = math.sqrt(B[0, 0] ** 2 + B[0, 1] ** 2)
+        a = np.sqrt(A[0, 0] ** 2 + A[1, 0] ** 2)
+        b = np.sqrt(B[0, 0] ** 2 + B[1, 0] ** 2)
 
         # Calculate angles necessary to determine update local error:
-        theta = math.acos(sum(np.multiply(A, B)) / (a * b))
-        alpha = math.atan2(C[0, 1], C[0, 0])
-        psi = math.atan2(A[0, 1], A[0, 0])
+        theta = np.arccos(sum(np.multiply(A, B)) / (a * b))
+        alpha = np.arctan2(C[1, 0], C[0, 0])
+        psi = np.arctan2(A[1, 0], A[0, 0])
 
         # Update local error:
-        localError.Tx = a - b * math.cos(theta)
-        localError.Ty = b * math.sin(theta) * np.sign(alpha - psi)
-        localError.Rz = psi - globalCurr.Rz
+        localError.Tx = b * np.cos(theta)
+        localError.Ty = b * np.sin(theta) * np.sign(alpha - psi)
+        localError.Rz = globalCurr.Rz - psi
         localError.Rz = wrapHeading(localError.Rz)
 
         # Control inputs:
@@ -248,7 +247,10 @@ def transitionUGV():
         # Wait for new vertex to be published:
         while vertexInit.Tx == vertexTrgt.Tx and vertexInit.Ty == vertexTrgt.Ty and vertexInit.Rz == vertexTrgt.Rz:
             vertex = rospy.wait_for_message("/messop/" + UGV_NAME, MessToUGV)
-        vertex.Rz = wrapHeading(vertex.Rz)
+            vertex.Rz = wrapHeading(vertex.Rz)
+            updateState(vertexTrgt, vertex)
+         
+        # Declare operation:
         operation = vertex.Op
 
         # Operation one:
@@ -263,7 +265,7 @@ def transitionUGV():
             # Calculate heading to input (Tx, Ty):
             dx = vertexTrgt.Tx - globalCurr.Tx
             dy = vertexTrgt.Ty - globalCurr.Ty
-            psi = math.atan2(dy, dx)
+            psi = np.arctan2(dy, dx)
 
             # Rotate UGV towards input (Tx, Ty):
             rotateUGV(psi)
@@ -277,7 +279,7 @@ def transitionUGV():
             # Calculate heading to input (Tx, Ty):
             dx = vertexTrgt.Tx - globalCurr.Tx
             dy = vertexTrgt.Ty - globalCurr.Ty
-            psi = math.atan2(dy, dx)
+            psi = np.arctan2(dy, dx)
 
             # Rotate UGV towards input (Tx, Ty):
             rotateUGV(psi)
@@ -335,6 +337,10 @@ if __name__=="__main__":
         print(MSG02)
         calibrateUGV()
         print(MSG03)
+
+        # Update initial vertex:
+        updateState(vertexInit, globalCurr)
+        updateState(vertexTrgt, vertexInit)
 
         # Initialize Odometry subscriber:
         rospy.Subscriber("/odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
