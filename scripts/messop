@@ -24,7 +24,7 @@ R_ANG = 0.3
 TX_ERROR_TOLERANCE = 0.01   # m
 TY_ERROR_TOLERANCE = 0.01   # m
 RZ_ERROR_TOLERANCE = 0.01   # rad
-MAX_TIME_OCCLUDED = 0.1     # sec
+MAX_TIME_OCCLUDED = 0.2     # sec
 
 # User-defined control gains:
 K_P = 3.8046    # P gain for local y-error
