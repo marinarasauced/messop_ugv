@@ -24,7 +24,7 @@ R_ANG = 0.3
 TX_ERROR_TOLERANCE = 0.01   # m
 TY_ERROR_TOLERANCE = 0.01   # m
 RZ_ERROR_TOLERANCE = 0.01   # rad
-MAX_TIME_OCCLUDED = 1.0     # sec
+MAX_TIME_OCCLUDED = 0.1     # sec
 
 # User-defined control gains:
 K_P = 3.8046    # P gain for local y-error
@@ -65,14 +65,12 @@ Communication ended
 ##################################################################################
 
 class calibrationUGV():
-    def __init__(self, c1, c2, c3, c4, c5, c6, c7):
+    def __init__(self, c1, c2, c3, c4, c5):
         self.c1 = c1    # Value to zero heading in viconCallback()
-        self.c2 = c2    # True initial heading added in viconCallback() and odometryCallback()
+        self.c2 = c2    # True initial heading added in viconCallback()
         self.c3 = c3    # True initial x-position added in odometryCallback()
         self.c4 = c4    # True initial y-position added in odometryCallback()
-        self.c5 = c5    # Odometry Tx calibration parameter using viconCallback() truth
-        self.c6 = c6    # Odometry Ty calibration parameter using viconCallback() truth
-        self.c7 = c7    # Odometry Rz calibration parameter using viconCallback() truth
+        self.c5 = c5    # True initial z-rotation added in odometryCallback()
 
 class stateUGV():
     def __init__(self, Tx, Ty, Rz):
@@ -105,7 +103,7 @@ def getHeading(data, msgType):
         y = data.pose.pose.orientation.y
         z = data.pose.pose.orientation.z
         w = data.pose.pose.orientation.w
-        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) + calibration.c2
+        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2)
    
     return Psi
 
@@ -133,16 +131,16 @@ def viconCallback(data):
 
 # Calibrate onboard Odometry using VICON pose:
 def calibrateOdometry():
-    calibration.c5 += globalCurr.Tx - globalTemp.Tx
-    calibration.c6 += globalCurr.Ty - globalTemp.Ty
-    calibration.c7 += globalCurr.Rz - globalTemp.Rz
+    calibration.c3 += globalCurr.Tx - globalTemp.Tx
+    calibration.c4 += globalCurr.Ty - globalTemp.Ty
+    calibration.c5 += globalCurr.Rz - globalTemp.Rz
 
 # Store state from onboard Odometry:
 def odometryCallback(data):
     msgType = "Odometry"
-    globalTemp.Tx = data.pose.pose.position.x + calibration.c3 + calibration.c5
-    globalTemp.Ty = data.pose.pose.position.y + calibration.c4 + calibration.c6
-    globalTemp.Rz = getHeading(data, msgType) + calibration.c2 + calibration.c7
+    globalTemp.Tx = data.pose.pose.position.x + calibration.c3
+    globalTemp.Ty = data.pose.pose.position.y + calibration.c4
+    globalTemp.Rz = getHeading(data, msgType) + calibration.c5
     globalTemp.Rz = wrapHeading(globalTemp.Rz)
 
     # Update timer:
@@ -202,8 +200,6 @@ def calibrateUGV():
     dx = viconP2.x - viconP1.x
     dy = viconP2.y - viconP1.y
     calibration.c2 = np.arctan2(dy, dx)
-    calibration.c3 = viconP2.x
-    calibration.c4 = viconP2.y
 
 def rotateUGV(psi):
     while abs(globalCurr.Rz - psi) > RZ_ERROR_TOLERANCE:
@@ -311,7 +307,7 @@ if __name__=="__main__":
     rospy.init_node("turtlebot3_messop")
 
     # Create objects:
-    calibration = calibrationUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    calibration = calibrationUGV(0.0, 0.0, 0.0, 0.0, 0.0)
     vertexInit = stateUGV(0.0, 0.0, 0.0)    # input state at start of transition
     vertexTrgt = stateUGV(0.0, 0.0, 0.0)    # input state at end of transition
     globalInit = stateUGV(0.0, 0.0, 0.0)    # state of UGV at start of transition
