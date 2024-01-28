@@ -1,11 +1,12 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>messop_turtle</name>
+  <name>messop_ugv</name>
   <version>1.0.0</version>
-  <description>The messop_turtle package</description>
-  <url type="website">https://github.com/marinarasauced/messop_turtle</url>
+  <description>The messop_ugv package</description>
+  <url type="website">https://github.com/marinarasauced/messop_ugv</url>
   <maintainer email="mjnelson@wpi.edu">Marina Nelson</maintainer>
   <author email="mjnelson@wpi.edu">Marina Nelson</author>
+  <license>TO DO</license>
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>geometry_msgs</build_depend>
   <build_depend>nav_msgs</build_depend>
