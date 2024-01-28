@@ -18,16 +18,16 @@ UGV_MAX_ANG_VEL = 2.84      # rad/s
 
 # User-defined limiting ratios:
 R_LIN = 0.5
-R_ANG = 0.3
+R_ANG = 0.6
 
 # User-defined error tolerances:
 TX_ERROR_TOLERANCE = 0.01   # m
-TY_ERROR_TOLERANCE = 0.01   # m
+TY_ERROR_TOLERANCE = 0.02   # m
 RZ_ERROR_TOLERANCE = 0.01   # rad
 MAX_TIME_OCCLUDED = 0.2     # sec
 
 # User-defined control gains:
-K_P = 3.8046    # P gain for local y-error
+K_P = 7.6092    # P gain for local y-error
 K_D = 2.3779    # D gain for heading error
 
 ##################################################################################
