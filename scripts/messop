@@ -204,8 +204,8 @@ def calibrateUGV():
     dx = viconP2.x - viconP1.x
     dy = viconP2.y - viconP1.y
     calibration.c2 = np.arctan2(dy, dx)
-    calibration.c3 = viconP2.x
-    calibration.c4 = viconP2.y
+    calibration.c3 = viconP1.x
+    calibration.c4 = viconP1.y
 
 def rotateUGV(psi):
     while abs(globalCurr.Rz - psi) > RZ_ERROR_TOLERANCE:
