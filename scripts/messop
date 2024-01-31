@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
-from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Point, TransformStamped, Twist
-from messop_ugv.msg import MessToUGV
+from messmsg.msg import CalibrateUGV, MessToUGV, StateUGV
+from nav_msgs.msg import Odometry
 import numpy as np
 import time
 
@@ -28,7 +28,7 @@ MAX_TIME_OCCLUDED = 0.1     # sec
 
 # User-defined control gains:
 K_P = 7.6092    # P gain for local y-error
-K_D = 2.3779    # D gain for heading error
+K_D = 2.6779    # D gain for heading error
 
 ##################################################################################
 
@@ -64,27 +64,12 @@ Communication ended
 
 ##################################################################################
 
-class calibrationUGV():
-    def __init__(self, c1, c2, c3, c4, c5, c6, c7):
-        self.c1 = c1    # Value to zero heading in viconCallback()
-        self.c2 = c2    # True initial heading added in viconCallback()
-        self.c3 = c3    # True initial x-position added in odometryCallback()
-        self.c4 = c4    # True initial y-position added in odometryCallback()
-        self.c5 = c5    # Calibrated z-rotation added in odometryCallback()
-        self.c6 = c6
-        self.c7 = c7
-
-class stateUGV():
-    def __init__(self, Tx, Ty, Rz):
-        self.Tx = Tx
-        self.Ty = Ty
-        self.Rz = Rz
-
-class timeUGV():
-    def __init__(self, vicon, odometry, calibration):
+# Callback timer:
+class occlusionTimer():
+    def __init__(self, calibration, odometry, vicon):
         self.calibration = calibration
-        self.vicon = vicon
         self.odometry = odometry
+        self.vicon = vicon
 
 ##################################################################################
 
@@ -99,14 +84,14 @@ def getHeading(data, msgType):
         w = data.transform.rotation.w
         Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.c1 + calibration.c2
 
-    # Retrieve quaternion components from a Odometry message and calculate heading:        
+    # Retrieve quaternion components from a Odometry message and calculate heading:
     elif msgType == "Odometry":
         x = data.pose.pose.orientation.x
         y = data.pose.pose.orientation.y
         z = data.pose.pose.orientation.z
         w = data.pose.pose.orientation.w
         Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2)
-   
+
     return Psi
 
 # Wrap heading to [-pi, pi] if calibration causes atan2 to exceed bounds:
@@ -117,13 +102,28 @@ def wrapHeading(data):
 
     return Psi
 
+# Update object with values from other object:
+def updateState(vertex, data):
+    vertex.Tx = data.Tx
+    vertex.Ty = data.Ty
+    vertex.Rz = data.Rz
+
+# Calibrate onboard Odometry using VICON pose:
+def calibrateOdometry():
+    calibration.C5 = viconCurr.Tx - odomCurr.Tx
+    calibration.C6 = viconCurr.Ty - odomCurr.Ty
+    calibration.C7 = viconCurr.Rz - odomCurr.Rz
+
+    # Publish data to logger:
+    log1.publish(calibration)
+
 # Store state from VICON pose:
 def viconCallback(data):
     msgType = "TransformStamped"
-    globalCurr.Tx = data.transform.translation.x
-    globalCurr.Ty = data.transform.translation.y
-    globalCurr.Rz = getHeading(data, msgType)
-    globalCurr.Rz = wrapHeading(globalCurr.Rz)
+    viconCurr.Tx = data.transform.translation.x
+    viconCurr.Ty = data.transform.translation.y
+    viconCurr.Rz = getHeading(data, msgType)
+    viconCurr.Rz = wrapHeading(viconCurr.Rz)
 
     # Update timer:
     timer.vicon = time.time()
@@ -131,36 +131,38 @@ def viconCallback(data):
     # Calibrate onboard Odometry periodically:
     calibrateOdometry()
 
-# Calibrate onboard Odometry using VICON pose:
-def calibrateOdometry():
-    calibration.c5 += globalCurr.Tx - globalTemp.Tx
-    calibration.c6 += globalCurr.Ty - globalTemp.Ty
-    calibration.c7 += globalCurr.Rz - globalTemp.Rz
+    # Set globalCurr equal to viconCurr:
+    updateState(globalCurr, viconCurr)
+
+    # Publish data to logger:
+    log2.publish(globalCurr)
+    log3.publish(viconCurr)
 
 # Store state from onboard Odometry:
 def odometryCallback(data):
     msgType = "Odometry"
-    localTx = data.pose.pose.position.x
-    localTy = data.pose.pose.position.y
-    globalTemp.Tx = calibration.c3 + localTx * np.cos(calibration.c2) - localTy * np.sin(calibration.c2)
-    globalTemp.Ty = calibration.c4 + localTx * np.sin(calibration.c2) + localTy * np.cos(calibration.c2)
-    globalTemp.Rz = getHeading(data, msgType) + calibration.c2
-    globalTemp.Rz = wrapHeading(globalTemp.Rz)
+    tx = data.pose.pose.position.x
+    ty = data.pose.pose.position.y
+    rz = calibration.C2 + calibration.C7
+    odomCurr.Tx = calibration.C3 + tx * np.cos(rz) - ty * np.sin(rz)
+    odomCurr.Ty = calibration.C4 + tx * np.sin(rz) + ty * np.cos(rz)
+    odomCurr.Rz = getHeading(data, msgType) + calibration.C2
+    odomCurr.Rz = wrapHeading(odomCurr.Rz)
 
     # Update timer:
     timer.odometry = time.time()
 
     # Check if UGV meets occlusion criteria:
     if timer.odometry > timer.vicon + MAX_TIME_OCCLUDED:
-        globalCurr.Tx = globalTemp.Tx + calibration.c5
-        globalCurr.Ty = globalTemp.Ty + calibration.c6
-        globalCurr.Rz = globalTemp.Rz + calibration.c7
+        globalCurr.Tx = odomCurr.Tx + calibration.C5
+        globalCurr.Ty = odomCurr.Ty + calibration.C6
+        globalCurr.Rz = odomCurr.Rz + calibration.C7
 
-# Update object with values from other object:
-def updateState(vertex, data):
-    vertex.Tx = data.Tx
-    vertex.Ty = data.Ty
-    vertex.Rz = data.Rz
+        # Publish data to logger:
+        log2.publish(globalCurr)
+
+    # Publish data to logger:
+    log4.publish(odomCurr)
 
 ##################################################################################
 
@@ -182,7 +184,7 @@ def controlUGV(uLin, uAng):
 def calibrateUGV():
 
     # Wait for message to ensure callback function is receiving from vicon_bridge:
-    rospy.wait_for_message(viconTopic, TransformStamped)
+    rospy.wait_for_message(vicon, TransformStamped)
 
     # Store initial point:
     viconP1 = Point()
@@ -194,22 +196,24 @@ def calibrateUGV():
     timer.calibration = time.time()
     while time.time() < timer.calibration + 1:
         controlUGV(uLin, uAng)
-    
+
     # Store terminal point:
     viconP2 = Point()
     viconP2.x = globalCurr.Tx
     viconP2.y = globalCurr.Ty
-    
+
     # Calculate true initial heading:
     dx = viconP2.x - viconP1.x
     dy = viconP2.y - viconP1.y
-    calibration.c2 = np.arctan2(dy, dx)
-    calibration.c3 = viconP1.x
-    calibration.c4 = viconP1.y
+    calibration.C2 = np.arctan2(dy, dx)
+    calibration.C3 = viconP1.x
+    calibration.C4 = viconP1.y
 
 def rotateUGV(psi):
+    MSG_ROTATE = "".join(["Rotating towards: (",str(psi),")"])
+    print(MSG_ROTATE)
     while abs(globalCurr.Rz - psi) > RZ_ERROR_TOLERANCE:
-        
+
         # Control inputs:
         uLin = 0.0; uAng = UGV_MAX_ANG_VEL * R_ANG * (psi - globalCurr.Rz)
         controlUGV(uLin, uAng)
@@ -217,6 +221,8 @@ def rotateUGV(psi):
 def translateUGV():
     localError.Tx = 1
     localError.Ty = 1
+    MSG_TRANSLATE = "".join(["Translating to: (",str(vertexTrgt.Tx),",",str(vertexTrgt.Ty),")"])
+    print(MSG_TRANSLATE)
     while abs(localError.Tx) > TX_ERROR_TOLERANCE or abs(localError.Ty) > TY_ERROR_TOLERANCE:
 
         # Store vectors to update local error:
@@ -253,13 +259,13 @@ def transitionUGV():
             vertex = rospy.wait_for_message("/messop/" + UGV_NAME, MessToUGV)
             vertex.Rz = wrapHeading(vertex.Rz)
             updateState(vertexTrgt, vertex)
-         
+
         # Declare operation:
         operation = vertex.Op
 
         # Operation one:
         if operation == 1:
-            
+
             # Rotate UGV towards input Rz:
             rotateUGV(vertexTrgt.Rz)
 
@@ -293,7 +299,7 @@ def transitionUGV():
 
             # Rotate UGV towards input Rz:
             rotateUGV(vertexTrgt.Rz)
-        
+
         # Invalid operation:
         else:
             print(MSG05)
@@ -311,26 +317,32 @@ def transitionUGV():
 if __name__=="__main__":
 
     # Initialize node:
-    viconTopic = "/vicon/" + UGV_NAME + "/" + UGV_NAME
-    rospy.init_node("turtlebot3_messop")
+    vicon = "/vicon/" + UGV_NAME + "/" + UGV_NAME
+    coefficients = "/messop/" + UGV_NAME + "/calibration"
+    rospy.init_node("messop_ugv")
 
     # Create objects:
-    calibration = calibrationUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    vertexInit = stateUGV(0.0, 0.0, 0.0)    # input state at start of transition
-    vertexTrgt = stateUGV(0.0, 0.0, 0.0)    # input state at end of transition
-    globalInit = stateUGV(0.0, 0.0, 0.0)    # state of UGV at start of transition
-    globalCurr = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time
-    globalTemp = stateUGV(0.0, 0.0, 0.0)    # state of UGV at current time while occluded
-    localError = stateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
-    timer = timeUGV(0.0, 0.0, 0.0)          # time (sec)
+    calibration = CalibrateUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    vertexInit = StateUGV(0.0, 0.0, 0.0)    # input state at start of transition
+    vertexTrgt = StateUGV(0.0, 0.0, 0.0)    # input state at end of transition
+    globalInit = StateUGV(0.0, 0.0, 0.0)    # state of UGV at start of transition
+    globalCurr = StateUGV(0.0, 0.0, 0.0)    # state of UGV at current time
+    viconCurr = StateUGV(0.0, 0.0, 0.0)     # state of UGV at current time according to VICON
+    odomCurr = StateUGV(0.0, 0.0, 0.0)      # state of UGV at current time according to Odometry
+    localError = StateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
+    timer = occlusionTimer(0.0, 0.0, 0.0)   # time (sec)
 
     # Zero VICON feedback:
-    viconInit = rospy.wait_for_message(viconTopic, TransformStamped)
+    viconInit = rospy.wait_for_message(vicon, TransformStamped)
     calibration.c1 = getHeading(viconInit, "TransformStamped")
 
     # Initialize publishers and subscribers:
-    rospy.Subscriber(viconTopic, TransformStamped, viconCallback)
+    rospy.Subscriber(vicon, TransformStamped, viconCallback)
     u = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+    log1 = rospy.Publisher(coefficients, CalibrateUGV, queue_size=10)
+    log2 = rospy.Publisher("/messop/" + UGV_NAME + "/global", StateUGV, queue_size=10)
+    log3 = rospy.Publisher("/messop/" + UGV_NAME + "/vicon", StateUGV, queue_size=10)
+    log4 = rospy.Publisher("/messop/" + UGV_NAME + "/odom", StateUGV, queue_size=10)
 
     try:
 
@@ -351,7 +363,7 @@ if __name__=="__main__":
 
         # Begin vertex navigation:
         transitionUGV()
-    
+
     except:
 
         # Indicate the node is shut down:
