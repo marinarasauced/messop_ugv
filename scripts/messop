@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import Point, TransformStamped, Twist
-from messmsg.msg import CalibrateUGV, MessToUGV, StateUGV
+from mess_msgs.msg import CalibrateUGV, MessToUGV, StateUGV
 from nav_msgs.msg import Odometry
 import numpy as np
 import time

@@ -3,7 +3,7 @@ project(messop_ugv)
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
-  messmsg
+  mess_msgs
   nav_msgs
   rospy
   sensor_msgs
@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
 generate_messages(
   DEPENDENCIES
   geometry_msgs
-  messmsg
+  mess_msgs
   nav_msgs
   sensor_msgs
   std_msgs
