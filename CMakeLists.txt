@@ -28,4 +28,3 @@ catkin_install_python(PROGRAMS
   scripts/logger
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-
