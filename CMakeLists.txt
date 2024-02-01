@@ -13,7 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
 generate_messages(
   DEPENDENCIES
   geometry_msgs
-  mess_msgs
   nav_msgs
   sensor_msgs
   std_msgs
