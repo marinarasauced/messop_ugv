@@ -82,7 +82,7 @@ def getHeading(data, msgType):
         y = data.transform.rotation.y
         z = data.transform.rotation.z
         w = data.transform.rotation.w
-        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.c1 + calibration.c2
+        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.C1 + calibration.C2
 
     # Retrieve quaternion components from a Odometry message and calculate heading:
     elif msgType == "Odometry":
@@ -215,7 +215,7 @@ def rotateUGV(psi):
     while abs(globalCurr.Rz - psi) > RZ_ERROR_TOLERANCE:
 
         # Control inputs:
-        uLin = 0.0; uAng = UGV_MAX_ANG_VEL * R_ANG * (psi - globalCurr.Rz)
+        uLin = 0.0; uAng = UGV_MAX_ANG_VEL * R_ANG * wrapHeading(psi - globalCurr.Rz)
         controlUGV(uLin, uAng)
 
 def translateUGV():
@@ -334,7 +334,7 @@ if __name__=="__main__":
 
     # Zero VICON feedback:
     viconInit = rospy.wait_for_message(vicon, TransformStamped)
-    calibration.c1 = getHeading(viconInit, "TransformStamped")
+    calibration.C1 = getHeading(viconInit, "TransformStamped")
 
     # Initialize publishers and subscribers:
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
