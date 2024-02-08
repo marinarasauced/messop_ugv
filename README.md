@@ -1,13 +1,19 @@
 # messop_ugv
-## Overview
-This repo contains a ROS Noetic package for a TurtleBot3 that uses VICON feedback to navigate a flat lab environment. The package allows for three operations for time-optimal navigation: 1. a rotation 2. a rotation and then a translation 3. a rotation, a translation, and then a rotation. The target user for this repo is anyone with access to AVMI resources or a VICON system.
-TurtleBot3 navigational package for MQP-RVC2401
+ROS Noetic nodes for TurtleBot3s. Allows for time-optimal waypoint navigation using primarilly VICON localization with onboard Odometry and SLAM during occlusion periods or deliberate interference.
+
+
+
+
+
 
 ## Installation requirements
 - A TurtleBot3 device - *if you are working on a new device, following [these steps](https://emanual.robotis.com/docs/en/platform/turtlebot3/quick-start/) to install ROS Noetic*
 - An Ubuntu 20.04 machine
+- A network with internet
 
 ## Installation instructions
+To build from source, go to your catkin_ws ```cd ~/catkin_ws/src~~~.
+
 From your remote Ubuntu device, log into the TurtleBot3 using SSH, and enter the device password.
 ```
 ssh ubuntu@{IP_OF_TURTLEBOT3}
