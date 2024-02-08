@@ -29,6 +29,21 @@ Then, initialize the waypoint navigation and logger.
 
 To control the TurtleBot3, publish a MessToUGV message from the [mess_msgs package](https://github.com/marinarasauced/mess_msgs).
 
-## Node information
+## Messop node information
 Topics:
-- hi
+- ```/cmd_vel```: Publishes ```geometry_msgs/Twist``` control input to bringup node.
+- ```/messop/logger/coefficients```: Publishes ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
+- ```/messop/logger/global```: Publishes ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
+- ```/messop/logger/odom```: Publishes ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
+- ```/messop/messop/vertex```: Subscribes to ```mess_msgs/MessToUGV``` vertex and operation type.
+- ```/messop/messop/interference```: Subscribes to ```std_msgs/Bool``` for deliberately ignoring VICON localization.
+- ```/vicon/{UGV_NAME}/{UGV_NAME}```: Subscribes to ```geometry_msgs/TransformStamped```VICON localization.
+
+## Logger node information
+Topics:
+- ```/messop/logger/flag```: Subscribes to ```mess_msgs/MessToUGVLogger``` indicator to log data as CSV files.
+- ```/cmd_vel```: Subscribes to ```geometry_msgs/Twist``` control input from messop node.
+- ```/messop/logger/coefficients```: Subscribes to ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
+- ```/messop/logger/global```: Subscribes to ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
+- ```/messop/logger/odom```: Subscribes to ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
+- ```/vicon/{UGV_NAME}/{UGV_NAME}```: Subscribes to ```geometry_msgs/TransformStamped``` VICON localization.
