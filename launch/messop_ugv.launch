@@ -1,0 +1,29 @@
+<launch>
+
+    <!-- UGV01 Arguments -->
+    <arg name="ugv01_name" default="burger01"/>
+    <arg name="ugv01_address" default="192.168.0.139"/>
+    <arg name="ugv01_username" default="ubuntu"/>
+    <arg name="ugv01_password" default="turtlebot"/>
+    <arg name="ugv01_multi_robot_name" default="">
+    <arg name="ugv01_set_lidar_frame_id" default="base_scan"/>
+
+    <!-- UGV01 Machine -->
+    <machine name="$(arg ugv01_name)" address="$(arg ugv01_address)" env-loader="/opt/ros/noetic/setup.sh" user="$(arg ugv01_username)" password="$(arg ugv01_password)" default="true">
+        <arg name="model" value="$(env TURTLEBOT3_MODEL)">
+    </machine>
+
+    <!-- UGV01 Nodes -->
+    <include file="$(find turtlebot3_bringup)/launch/turtlebot3_core.launch"  machine="$(arg ugv01_name)">
+        <arg name="multi_robot_name" value="$(arg ugv01_multi_robot_name)"/>
+        <remap from="/*" to="/$(arg ugv01_name)/*"/>
+    </include>
+    <include file="$(find turtlebot3_bringup)/launch/turtlebot3_lidar.launch">
+        <arg name="set_frame_id" value="$(arg ugv01_set_lidar_frame_id)"/>
+        <remap from="/*" to="/$(arg ugv01_name)/*"/>
+    </include>
+    <node name="messop_$(arg ugv01_name)" pkg="messop_ugv" type="messop" output="screen" machine="$(arg ugv01_name)">
+        <remap from="/*" to="/$(arg ugv01_name)/*"/>
+    </node>
+
+</launch>

@@ -1,0 +1,13 @@
+{
+    "ugv_name": "TurtleBot01",
+    "ugv_max_lin_vel": 0.22,
+    "ugv_max_ang_vel": 2.84,
+    "r_lin": 0.5,
+    "r_ang": 0.3,
+    "tx_error_tolerance": 0.01,
+    "ty_error_tolerance": 0.02,
+    "rz_error_tolerance": 0.01,
+    "max_time_occluded": 0.1,
+    "k_p": 7.6092,
+    "k_d": 2.6779
+}

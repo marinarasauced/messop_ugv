@@ -4,27 +4,45 @@ import rospy
 from geometry_msgs.msg import Point, TransformStamped, Twist
 from mess_msgs.msg import CalibrateUGV, MessToUGV, StateUGV
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Bool
 import numpy as np
 import time
+import json
 
 ##################################################################################
 
-# Object name in VICON Tracker:
-UGV_NAME = "TurtleBot01"
+# Import JSON data:
+f = open("../ugv.json")
+f_data = json.load(f)
 
-# Hardware specifications for a TurtleBot3 Burger:
-UGV_MAX_LIN_VEL = 0.22      # m/s
-UGV_MAX_ANG_VEL = 2.84      # rad/s
+# Object name in VICON Tracker:
+UGV_NAME = f_data["ugv_name"]
+
+# Hardware specifications for a TurtleBot3s:
+BURGER_MAX_LIN_VEL = 0.22
+BURGER_MAX_ANG_VEL = 2.84
+WAFFLE_MAX_LIN_VEL = 0.26
+WAFFLE_MAX_ANG_VEL = 1.82
+TURTLEBOT3_MODEL = rospy.get_param("model", "burger")
+if TURTLEBOT3_MODEL == "burger":
+    UGV_MAX_LIN_VEL = BURGER_MAX_LIN_VEL
+    UGV_MAX_ANG_VEL = BURGER_MAX_ANG_VEL
+elif TURTLEBOT3_MODEL == "waffle" or TURTLEBOT3_MODEL == "waffle_pi":
+    UGV_MAX_LIN_VEL = WAFFLE_MAX_LIN_VEL
+    UGV_MAX_ANG_VEL = WAFFLE_MAX_ANG_VEL
+else:
+    UGV_MAX_LIN_VEL = BURGER_MAX_LIN_VEL
+    UGV_MAX_ANG_VEL = BURGER_MAX_ANG_VEL
 
 # User-defined limiting ratios:
-R_LIN = 0.5
-R_ANG = 0.3
+R_LIN = f_data["r_lin"]
+R_ANG = f_data["r_ang"]
 
 # User-defined error tolerances:
-TX_ERROR_TOLERANCE = 0.01   # m
-TY_ERROR_TOLERANCE = 0.02   # m
-RZ_ERROR_TOLERANCE = 0.01   # rad
-MAX_TIME_OCCLUDED = 0.1     # sec
+TX_ERROR_TOLERANCE = f_data["tx_error_tolerance"]   # m
+TY_ERROR_TOLERANCE = f_data["ty_error_tolerance"]   # m
+RZ_ERROR_TOLERANCE = f_data["rz_error_tolerance"]   # rad
+MAX_TIME_OCCLUDED = f_data["max_time_occluded"]     # sec
 
 # User-defined control gains:
 K_P = 7.6092    # P gain for local y-error
@@ -117,6 +135,10 @@ def calibrateOdometry():
     # Publish data to logger:
     log1.publish(calibration)
 
+# Interfere with VICON callback:
+def viconInterference(data):
+    interference.data = data
+
 # Store state from VICON pose:
 def viconCallback(data):
     msgType = "TransformStamped"
@@ -132,7 +154,8 @@ def viconCallback(data):
     calibrateOdometry()
 
     # Set globalCurr equal to viconCurr:
-    updateState(globalCurr, viconCurr)
+    if not interference.data:
+        updateState(globalCurr, viconCurr)
 
     # Publish data to logger:
     log2.publish(globalCurr)
@@ -256,7 +279,7 @@ def transitionUGV():
 
         # Wait for new vertex to be published:
         while vertexInit.Tx == vertexTrgt.Tx and vertexInit.Ty == vertexTrgt.Ty and vertexInit.Rz == vertexTrgt.Rz:
-            vertex = rospy.wait_for_message("/messop/" + UGV_NAME, MessToUGV)
+            vertex = rospy.wait_for_message("/messop/messop/vertex", MessToUGV)
             vertex.Rz = wrapHeading(vertex.Rz)
             updateState(vertexTrgt, vertex)
 
@@ -318,7 +341,6 @@ if __name__=="__main__":
 
     # Initialize node:
     vicon = "/vicon/" + UGV_NAME + "/" + UGV_NAME
-    coefficients = "/messop/" + UGV_NAME + "/calibration"
     rospy.init_node("messop_ugv")
 
     # Create objects:
@@ -331,6 +353,7 @@ if __name__=="__main__":
     odomCurr = StateUGV(0.0, 0.0, 0.0)      # state of UGV at current time according to Odometry
     localError = StateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
     timer = occlusionTimer(0.0, 0.0, 0.0)   # time (sec)
+    interference = Bool(False)              # simulated interference for VICON localization
 
     # Zero VICON feedback:
     viconInit = rospy.wait_for_message(vicon, TransformStamped)
@@ -338,11 +361,12 @@ if __name__=="__main__":
 
     # Initialize publishers and subscribers:
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
+    rospy.Subscriber("/messop/messop/interference", Bool, viconInterference)
     u = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
-    log1 = rospy.Publisher(coefficients, CalibrateUGV, queue_size=10)
-    log2 = rospy.Publisher("/messop/" + UGV_NAME + "/global", StateUGV, queue_size=10)
-    log3 = rospy.Publisher("/messop/" + UGV_NAME + "/vicon", StateUGV, queue_size=10)
-    log4 = rospy.Publisher("/messop/" + UGV_NAME + "/odom", StateUGV, queue_size=10)
+    log1 = rospy.Publisher("/messop/logger/coefficients", CalibrateUGV, queue_size=10)
+    log2 = rospy.Publisher("/messop/logger/global", StateUGV, queue_size=10)
+    log3 = rospy.Publisher("/messop/logger/vicon", StateUGV, queue_size=10)
+    log4 = rospy.Publisher("/messop/logger/odom", StateUGV, queue_size=10)
 
     try:
 
