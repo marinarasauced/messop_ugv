@@ -12,20 +12,14 @@ ROS Noetic nodes for TurtleBot3s. Allows for time-optimal waypoint navigation us
 - A network with internet
 
 ## Installation instructions
-To build from source, go to your catkin_ws ```cd ~/catkin_ws/src~~~.
+To build from source, go to your catkin_ws ```cd ~/catkin_ws/src```.
 
-From your remote Ubuntu device, log into the TurtleBot3 using SSH, and enter the device password.
-```
-ssh ubuntu@{IP_OF_TURTLEBOT3}
-```
-Navigate to the source folder of your catkin workspace and clone the repository. This step requires the TurtleBot3 to have an active internet connection.
-```
-cd ~/catkin_ws/src && git clone https://github.com/marinarasauced/turtlebot3_messop.git
-```
-Return to the catkin workspace and compile the package.
-```
-cd ~/catkin_ws && catkin_make
-```
+Download the source for these nodes by running
+
+```git clone https://github.com/marinarasauced/messop_ugv.git```
+
+Compilete the code with ```catkin_make```.
+
 ## Usage instructions
 Once you have the package built, you can launch the node. The node relies on feedback from the VICON system and is designed to work with the [ROBOTIS TurtleBot3](https://github.com/ROBOTIS-GIT/turtlebot3) and [VICON bridge](https://github.com/ethz-asl/vicon_bridge) packages. Users publish a custom message type containing a point, a heading, and an operation integer, which the node interprets into control inputs to perform the desired operation.
   
