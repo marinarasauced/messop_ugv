@@ -13,7 +13,7 @@ import csv
 ##################################################################################
 
 # Object name in VICON Tracker:
-UGV_NAME = "TurtleBot01"
+UGV_NAME = rospy.get_param("topic_prefix", "ugv")
 
 ##################################################################################
 
@@ -97,24 +97,23 @@ if __name__=="__main__":
 
     # Initialize node:
     vicon = "/vicon/" + UGV_NAME + "/" + UGV_NAME
-    coefficients = "/messop/" + UGV_NAME + "/calibration"
     rospy.init_node("messlogger_ugv")
 
     # Initialize calibration coefficient subscriber and data storage:
     calTime = []; cal1 = []; cal2 = []; cal3 = []; cal4 = []; cal5 = []; cal6 = []; cal7 = []
-    rospy.Subscriber(coefficients, CalibrateUGV, callback1)
+    rospy.Subscriber("messop/logger/coefficients", CalibrateUGV, callback1)
 
     # Initialize global subscriber and data storage:
     globalTime = []; globalTx = []; globalTy = []; globalRz = []
-    rospy.Subscriber("/messop/" + UGV_NAME + "/global", StateUGV, callback2)
+    rospy.Subscriber("messop/logger/global", StateUGV, callback2)
 
     # Initialize calibrated vicon subscriber and data storage:
     viconTime = []; viconTx = []; viconTy = []; viconRz = []
-    rospy.Subscriber("/messop/" + UGV_NAME + "/vicon", StateUGV, callback3)
+    rospy.Subscriber("messop/logger/vicon", StateUGV, callback3)
 
     # Initialize calibrated vicon subscriber and data storage:
     odomTime = []; odomTx = []; odomTy = []; odomRz = []
-    rospy.Subscriber("/messop/" + UGV_NAME + "/odom", StateUGV, callback4)
+    rospy.Subscriber("messop/logger/odom", StateUGV, callback4)
 
     try:
 
@@ -122,7 +121,7 @@ if __name__=="__main__":
         print(MSG01)
 
         # Wait for flag indicating experiment completion:
-        rospy.wait_for_message("/messlogger/" + UGV_NAME, MessToUGVLogger)
+        rospy.wait_for_message("messop/logger/flag", MessToUGVLogger)
 
         # Indicate loggings is initiated:
         print(MSG02)

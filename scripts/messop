@@ -6,24 +6,25 @@ from mess_msgs.msg import CalibrateUGV, MessToUGV, StateUGV
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
 import numpy as np
+import os.path
 import time
 import json
 
 ##################################################################################
 
 # Import JSON data:
-f = open("../ugv.json")
+f = open(os.path.dirname(__file__) + "/../ugv.json")
 f_data = json.load(f)
 
 # Object name in VICON Tracker:
-UGV_NAME = f_data["ugv_name"]
+UGV_NAME = rospy.get_param("topic_prefix", "ugv")
 
 # Hardware specifications for a TurtleBot3s:
 BURGER_MAX_LIN_VEL = 0.22
 BURGER_MAX_ANG_VEL = 2.84
 WAFFLE_MAX_LIN_VEL = 0.26
 WAFFLE_MAX_ANG_VEL = 1.82
-TURTLEBOT3_MODEL = rospy.get_param("model", "burger")
+TURTLEBOT3_MODEL = f_data["model"]
 if TURTLEBOT3_MODEL == "burger":
     UGV_MAX_LIN_VEL = BURGER_MAX_LIN_VEL
     UGV_MAX_ANG_VEL = BURGER_MAX_ANG_VEL
@@ -45,8 +46,8 @@ RZ_ERROR_TOLERANCE = f_data["rz_error_tolerance"]   # rad
 MAX_TIME_OCCLUDED = f_data["max_time_occluded"]     # sec
 
 # User-defined control gains:
-K_P = 7.6092    # P gain for local y-error
-K_D = 2.6779    # D gain for heading error
+K_P = f_data["k_p"]    # P gain for local y-error
+K_D = f_data["k_d"]   # D gain for heading error
 
 ##################################################################################
 
@@ -279,7 +280,7 @@ def transitionUGV():
 
         # Wait for new vertex to be published:
         while vertexInit.Tx == vertexTrgt.Tx and vertexInit.Ty == vertexTrgt.Ty and vertexInit.Rz == vertexTrgt.Rz:
-            vertex = rospy.wait_for_message("/messop/messop/vertex", MessToUGV)
+            vertex = rospy.wait_for_message("/" + UGV_NAME + "/messop/messop/vertex", MessToUGV)
             vertex.Rz = wrapHeading(vertex.Rz)
             updateState(vertexTrgt, vertex)
 
@@ -361,12 +362,12 @@ if __name__=="__main__":
 
     # Initialize publishers and subscribers:
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
-    rospy.Subscriber("/messop/messop/interference", Bool, viconInterference)
-    u = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
-    log1 = rospy.Publisher("/messop/logger/coefficients", CalibrateUGV, queue_size=10)
-    log2 = rospy.Publisher("/messop/logger/global", StateUGV, queue_size=10)
-    log3 = rospy.Publisher("/messop/logger/vicon", StateUGV, queue_size=10)
-    log4 = rospy.Publisher("/messop/logger/odom", StateUGV, queue_size=10)
+    rospy.Subscriber("messop/messop/interference", Bool, viconInterference)
+    u = rospy.Publisher("cmd_vel", Twist, queue_size=10)
+    log1 = rospy.Publisher("messop/logger/coefficients", CalibrateUGV, queue_size=10)
+    log2 = rospy.Publisher("messop/logger/global", StateUGV, queue_size=10)
+    log3 = rospy.Publisher("messop/logger/vicon", StateUGV, queue_size=10)
+    log4 = rospy.Publisher("messop/logger/odom", StateUGV, queue_size=10)
 
     try:
 
@@ -383,7 +384,7 @@ if __name__=="__main__":
         updateState(vertexTrgt, vertexInit)
 
         # Initialize Odometry subscriber:
-        rospy.Subscriber("/odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
+        rospy.Subscriber("odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
 
         # Begin vertex navigation:
         transitionUGV()
