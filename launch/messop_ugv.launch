@@ -1,16 +1,14 @@
 <launch>
 
   <!-- Arguments -->
-  <arg name="ugv_name" default="ugv01"/>
-  <arg name="ugv_address" default="192.168.0.139"/>
-  <arg name="ugv_username" default="ubuntu"/>
-  <arg name="ugv_password" default="turtlebot"/>
-
-  <!-- Machine -->
-  <!-- <machine name="$(arg ugv_name)" address="$(arg ugv_address)" env-loader="/opt/ros/noetic/setup.sh" user="$(arg ugv_username)" password="$(arg ugv_password)" default="true"/> -->
+  <arg name="ugv_name" default="burger01"/>
 
   <!-- Vehicle Group -->
   <group ns="$(arg ugv_name)">
+
+    <!-- Arguments -->
+    <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+    <arg name="lds_model" default="$(env LDS_MODEL)" doc="LDS MODEL [LDS-01, LDS-02]"/>
 
     <!-- Parameters -->
     <param name="topic_prefix" value="$(arg ugv_name)"/>
