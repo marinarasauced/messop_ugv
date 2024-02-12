@@ -364,7 +364,7 @@ if __name__=="__main__":
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
     rospy.Subscriber("messop/messop/interference", Bool, viconInterference)
     u = rospy.Publisher("cmd_vel", Twist, queue_size=10)
-    log1 = rospy.Publisher("messop/logger/coefficients", CalibrateUGV, queue_size=10)
+    log1 = rospy.Publisher("messop/logger/coefficients", CalibrateUGV, queue_size=10)  
     log2 = rospy.Publisher("messop/logger/global", StateUGV, queue_size=10)
     log3 = rospy.Publisher("messop/logger/vicon", StateUGV, queue_size=10)
     log4 = rospy.Publisher("messop/logger/odom", StateUGV, queue_size=10)
