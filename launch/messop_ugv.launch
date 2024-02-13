@@ -12,6 +12,7 @@
 
     <!-- Parameters -->
     <param name="topic_prefix" value="$(arg ugv_name)"/>
+    <param name="model" value="$(arg model)"/>
 
     <!-- Other -->
     <include file="$(find turtlebot3_bringup)/launch/turtlebot3_robot.launch"/>
