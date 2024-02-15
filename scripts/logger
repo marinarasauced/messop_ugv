@@ -7,6 +7,7 @@ from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu, JointState
 from std_msgs.msg import String
 import numpy as np
+import os
 import time
 import csv
 
@@ -39,7 +40,10 @@ Communication ended
 ##################################################################################
 
 def log_data(name, head, data):
-    with open(name + ".csv", "w", newline="") as file:
+    path = "/home/ubuntu/catkin_ws/logs/"
+    if not os.path.exists(path):
+        os.makedirs(path)
+    with open(path + name + ".csv", "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(head)
         rows, cols = data.shape
