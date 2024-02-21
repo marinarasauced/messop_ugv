@@ -21,5 +21,6 @@ include_directories(
 catkin_install_python(PROGRAMS
   scripts/messop
   scripts/logger
+  scripts/pathloop
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
