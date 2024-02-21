@@ -1,0 +1,408 @@
+#!/usr/bin/env python
+
+import rospy
+from geometry_msgs.msg import Point, TransformStamped, Twist
+from mess_msgs.msg import CalibrateUGV, MessToUGV, StateUGV
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Bool
+import numpy as np
+import os.path
+import time
+import json
+
+##################################################################################
+
+# Import JSON data:
+f = open(os.path.dirname(__file__) + "/../ugv.json")
+f_data = json.load(f)
+
+# Object name in VICON Tracker:
+UGV_NAME = rospy.get_param("topic_prefix", "ugv")
+
+# Hardware specifications for a TurtleBot3s:
+BURGER_MAX_LIN_VEL = 0.22
+BURGER_MAX_ANG_VEL = 2.84
+WAFFLE_MAX_LIN_VEL = 0.26
+WAFFLE_MAX_ANG_VEL = 1.82
+TURTLEBOT3_MODEL = rospy.get_param("model", "burger")
+if TURTLEBOT3_MODEL == "burger":
+    UGV_MAX_LIN_VEL = BURGER_MAX_LIN_VEL
+    UGV_MAX_ANG_VEL = BURGER_MAX_ANG_VEL
+elif TURTLEBOT3_MODEL == "waffle" or TURTLEBOT3_MODEL == "waffle_pi":
+    UGV_MAX_LIN_VEL = WAFFLE_MAX_LIN_VEL
+    UGV_MAX_ANG_VEL = WAFFLE_MAX_ANG_VEL
+else:
+    UGV_MAX_LIN_VEL = BURGER_MAX_LIN_VEL
+    UGV_MAX_ANG_VEL = BURGER_MAX_ANG_VEL
+
+# User-defined limiting ratios:
+R_LIN = f_data["r_lin"]
+R_ANG = f_data["r_ang"]
+
+# User-defined error tolerances:
+TX_ERROR_TOLERANCE = f_data["tx_error_tolerance"]   # m
+TY_ERROR_TOLERANCE = f_data["ty_error_tolerance"]   # m
+RZ_ERROR_TOLERANCE = f_data["rz_error_tolerance"]   # rad
+MAX_TIME_OCCLUDED = f_data["max_time_occluded"]     # sec
+
+# User-defined control gains:
+K_P = f_data["k_p"]   # P gain for local y-error
+K_D = f_data["k_d"]   # D gain for heading error
+
+# User-defined path (to loop):
+POINTS = np.array([[0.0, 0.0], [0.0, 0.0], [0.0, 0.0]])
+POINT_COUNT = POINTS.shape[0]
+
+##################################################################################
+
+MSG01 = """
+Initializing TurtleBot3 MESS navigation
+
+CTRL-C to quit
+------------------------------------------
+"""
+
+MSG02 = """
+Calibrating TurtleBot3 in VICON coordinate frame
+"""
+
+MSG03 = """
+Calibration complete
+"""
+
+MSG04 = """
+Waiting for vertex from MESS
+"""
+
+MSG05 = """
+Invalid operation index ...
+    1: Rotate towards heading Rz
+    2: Rotate towards (Tx,Ty), then transition to (Tx,Ty)
+    3: Rotate towards (Tx,Ty), transition to (Tx,Ty), then rotate towards Rz
+"""
+
+MSG06 = """
+Communication ended
+"""
+
+##################################################################################
+
+# Callback timer:
+class occlusionTimer():
+    def __init__(self, calibration, odometry, vicon):
+        self.calibration = calibration
+        self.odometry = odometry
+        self.vicon = vicon
+
+##################################################################################
+
+# Calculate heading:
+def getHeading(data, msgType):
+
+    # Retrieve quaternion components from a TransformStamped message and calculate heading:
+    if msgType == "TransformStamped":
+        x = data.transform.rotation.x
+        y = data.transform.rotation.y
+        z = data.transform.rotation.z
+        w = data.transform.rotation.w
+        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2) - calibration.C1 + calibration.C2
+
+    # Retrieve quaternion components from a Odometry message and calculate heading:
+    elif msgType == "Odometry":
+        x = data.pose.pose.orientation.x
+        y = data.pose.pose.orientation.y
+        z = data.pose.pose.orientation.z
+        w = data.pose.pose.orientation.w
+        Psi = np.arctan2(2 * (w * z + x * y), w ** 2 + x ** 2 - y ** 2 - z ** 2)
+
+    return Psi
+
+# Wrap heading to [-pi, pi] if calibration causes atan2 to exceed bounds:
+def wrapHeading(data):
+    Psi = data
+    while abs(Psi) > np.pi:
+        Psi -= np.sign(Psi) * 2 * np.pi
+
+    return Psi
+
+# Update object with values from other object:
+def updateState(vertex, data):
+    vertex.Tx = data.Tx
+    vertex.Ty = data.Ty
+    vertex.Rz = data.Rz
+
+# Calibrate onboard Odometry using VICON pose:
+def calibrateOdometry():
+    calibration.C5 = viconCurr.Tx - odomCurr.Tx
+    calibration.C6 = viconCurr.Ty - odomCurr.Ty
+    calibration.C7 = viconCurr.Rz - odomCurr.Rz
+
+    # Publish data to logger:
+    log1.publish(calibration)
+
+# Interfere with VICON callback:
+def viconInterference(data):
+    interference.data = data
+
+# Store state from VICON pose:
+def viconCallback(data):
+    msgType = "TransformStamped"
+    viconCurr.Tx = data.transform.translation.x
+    viconCurr.Ty = data.transform.translation.y
+    viconCurr.Rz = getHeading(data, msgType)
+    viconCurr.Rz = wrapHeading(viconCurr.Rz)
+
+    # Update timer:
+    timer.vicon = time.time()
+
+    # Calibrate onboard Odometry periodically:
+    calibrateOdometry()
+
+    # Set globalCurr equal to viconCurr:
+    if not interference.data:
+        updateState(globalCurr, viconCurr)
+
+    # Publish data to logger:
+    log2.publish(globalCurr)
+    log3.publish(viconCurr)
+
+# Store state from onboard Odometry:
+def odometryCallback(data):
+    msgType = "Odometry"
+    tx = data.pose.pose.position.x
+    ty = data.pose.pose.position.y
+    rz = calibration.C2 + calibration.C7
+    odomCurr.Tx = calibration.C3 + tx * np.cos(rz) - ty * np.sin(rz)
+    odomCurr.Ty = calibration.C4 + tx * np.sin(rz) + ty * np.cos(rz)
+    odomCurr.Rz = getHeading(data, msgType) + calibration.C2
+    odomCurr.Rz = wrapHeading(odomCurr.Rz)
+
+    # Update timer:
+    timer.odometry = time.time()
+
+    # Check if UGV meets occlusion criteria:
+    if timer.odometry > timer.vicon + MAX_TIME_OCCLUDED:
+        globalCurr.Tx = odomCurr.Tx + calibration.C5
+        globalCurr.Ty = odomCurr.Ty + calibration.C6
+        globalCurr.Rz = odomCurr.Rz + calibration.C7
+
+        # Publish data to logger:
+        log2.publish(globalCurr)
+
+    # Publish data to logger:
+    log4.publish(odomCurr)
+
+##################################################################################
+
+def controlUGV(uLin, uAng):
+    twist = Twist()
+    twist.linear.x = uLin; twist.linear.y = 0; twist.linear.z = 0
+    twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = uAng
+
+    # Wrap linear velocity to ensure maximum value is not exceeded:
+    if abs(twist.linear.x) > UGV_MAX_LIN_VEL * R_LIN:
+        twist.linear.x = np.sign(uLin) * UGV_MAX_LIN_VEL * R_LIN
+
+    # Wrap angular velocity to ensure maximum value is not exceeded:
+    if abs(twist.angular.z) > UGV_MAX_ANG_VEL * R_ANG:
+        twist.angular.z = np.sign(uAng) * UGV_MAX_ANG_VEL * R_ANG
+
+    u.publish(twist)
+
+def calibrateUGV():
+
+    # Wait for message to ensure callback function is receiving from vicon_bridge:
+    rospy.wait_for_message(vicon, TransformStamped)
+
+    # Store initial point:
+    viconP1 = Point()
+    viconP1.x = globalCurr.Tx
+    viconP1.y = globalCurr.Ty
+
+    # Translate linearly in the body-fixed x-direction for one second:
+    uLin = R_LIN * UGV_MAX_LIN_VEL; uAng = 0.0
+    timer.calibration = time.time()
+    while time.time() < timer.calibration + 1:
+        controlUGV(uLin, uAng)
+
+    # Store terminal point:
+    viconP2 = Point()
+    viconP2.x = globalCurr.Tx
+    viconP2.y = globalCurr.Ty
+
+    # Calculate true initial heading:
+    dx = viconP2.x - viconP1.x
+    dy = viconP2.y - viconP1.y
+    calibration.C2 = np.arctan2(dy, dx)
+    calibration.C3 = viconP1.x
+    calibration.C4 = viconP1.y
+
+def rotateUGV(psi):
+    MSG_ROTATE = "".join(["Rotating towards: (",str(psi),")"])
+    print(MSG_ROTATE)
+    while abs(globalCurr.Rz - psi) > RZ_ERROR_TOLERANCE:
+
+        # Control inputs:
+        uLin = 0.0; uAng = UGV_MAX_ANG_VEL * R_ANG * wrapHeading(psi - globalCurr.Rz)
+        controlUGV(uLin, uAng)
+
+def translateUGV():
+    localError.Tx = 1
+    localError.Ty = 1
+    MSG_TRANSLATE = "".join(["Translating to: (",str(vertexTrgt.Tx),",",str(vertexTrgt.Ty),")"])
+    print(MSG_TRANSLATE)
+    while abs(localError.Tx) > TX_ERROR_TOLERANCE or abs(localError.Ty) > TY_ERROR_TOLERANCE:
+
+        # Store vectors to update local error:
+        A = np.array([[vertexTrgt.Tx - vertexInit.Tx], [vertexTrgt.Ty - vertexInit.Ty]])
+        B = np.array([[vertexTrgt.Tx - globalCurr.Tx], [vertexTrgt.Ty - globalCurr.Ty]])
+        C = np.array([[globalCurr.Tx - vertexInit.Tx], [globalCurr.Ty - vertexInit.Ty]])
+        a = np.sqrt(A[0, 0] ** 2 + A[1, 0] ** 2)
+        b = np.sqrt(B[0, 0] ** 2 + B[1, 0] ** 2)
+
+        # Calculate angles necessary to determine update local error:
+        theta = np.arccos(sum(np.multiply(A, B)) / (a * b))
+        alpha = np.arctan2(C[1, 0], C[0, 0])
+        psi = np.arctan2(A[1, 0], A[0, 0])
+
+        # Update local error:
+        localError.Tx = b * np.cos(theta)
+        localError.Ty = b * np.sin(theta) * np.sign(alpha - psi)
+        localError.Rz = globalCurr.Rz - psi
+        localError.Rz = wrapHeading(localError.Rz)
+
+        # Control inputs:
+        uLin = UGV_MAX_LIN_VEL * R_LIN
+        uAng = -K_P * localError.Ty -K_D * localError.Rz
+        controlUGV(uLin, uAng)
+
+def transitionUGV():
+    counter = 0
+    while not rospy.is_shutdown():
+
+        # Indicate the UGV is waiting for an input vertex:
+        print(MSG04)
+
+        # Check if counter exceeds points:
+        if counter >= POINT_COUNT:
+            counter = 0
+
+        # Retrieve point:
+        vertexTrgt.Tx = POINTS[counter, 0]
+        vertexTrgt.Ty = POINTS[counter, 1]
+        operation = 2
+
+        # Declare operation:
+        operation = vertex.Op
+
+        # Operation one:
+        if operation == 1:
+
+            # Rotate UGV towards input Rz:
+            rotateUGV(vertexTrgt.Rz)
+
+        # Operation two:
+        elif operation == 2:
+
+            # Calculate heading to input (Tx, Ty):
+            dx = vertexTrgt.Tx - globalCurr.Tx
+            dy = vertexTrgt.Ty - globalCurr.Ty
+            psi = np.arctan2(dy, dx)
+
+            # Rotate UGV towards input (Tx, Ty):
+            rotateUGV(psi)
+
+            # Translate UGV to (Tx, Ty):
+            translateUGV()
+
+        # Operation three:
+        elif operation == 3:
+
+            # Calculate heading to input (Tx, Ty):
+            dx = vertexTrgt.Tx - globalCurr.Tx
+            dy = vertexTrgt.Ty - globalCurr.Ty
+            psi = np.arctan2(dy, dx)
+
+            # Rotate UGV towards input (Tx, Ty):
+            rotateUGV(psi)
+
+            # Translate UGV to (Tx, Ty):
+            translateUGV()
+
+            # Rotate UGV towards input Rz:
+            rotateUGV(vertexTrgt.Rz)
+
+        # Invalid operation:
+        else:
+            print(MSG05)
+
+        # Stop the UGV:
+        uLin = 0.0; uAng = 0.0
+        controlUGV(uLin, uAng)
+
+        # Update initial state and vertex for next iteration:
+        updateState(vertexInit, vertex)
+        updateState(globalInit, globalCurr)
+
+        # Increment counter:
+        counter += 1
+        time.sleep(3)
+
+##################################################################################
+
+if __name__=="__main__":
+
+    # Initialize node:
+    vicon = "/vicon/" + UGV_NAME + "/" + UGV_NAME
+    rospy.init_node("pathloop_ugv")
+    time.sleep(15)
+
+    # Create objects:
+    calibration = CalibrateUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    vertexInit = StateUGV(0.0, 0.0, 0.0)    # input state at start of transition
+    vertexTrgt = StateUGV(0.0, 0.0, 0.0)    # input state at end of transition
+    globalInit = StateUGV(0.0, 0.0, 0.0)    # state of UGV at start of transition
+    globalCurr = StateUGV(0.0, 0.0, 0.0)    # state of UGV at current time
+    viconCurr = StateUGV(0.0, 0.0, 0.0)     # state of UGV at current time according to VICON
+    odomCurr = StateUGV(0.0, 0.0, 0.0)      # state of UGV at current time according to Odometry
+    localError = StateUGV(1.0, 1.0, 1.0)    # local frame error during transitions
+    timer = occlusionTimer(0.0, 0.0, 0.0)   # time (sec)
+    interference = Bool(False)              # simulated interference for VICON localization
+
+    # Zero VICON feedback:
+    viconInit = rospy.wait_for_message(vicon, TransformStamped)
+    calibration.C1 = getHeading(viconInit, "TransformStamped")
+
+    # Initialize publishers and subscribers:
+    rospy.Subscriber("messop/messop/interference", Bool, viconInterference)
+    u = rospy.Publisher("cmd_vel", Twist, queue_size=10)
+    log1 = rospy.Publisher("messop/logger/coefficients", CalibrateUGV, queue_size=10)  
+    log2 = rospy.Publisher("messop/logger/global", StateUGV, queue_size=10)
+    log3 = rospy.Publisher("messop/logger/vicon", StateUGV, queue_size=10)
+    log4 = rospy.Publisher("messop/logger/odom", StateUGV, queue_size=10)
+    rospy.Subscriber(vicon, TransformStamped, viconCallback)
+
+    try:
+
+        # Indicate the node is initiated:
+        print(MSG01)
+
+        # Attempt VICON calibration:
+        print(MSG02)
+        calibrateUGV()
+        print(MSG03)
+
+        # Update initial vertex:
+        updateState(vertexInit, globalCurr)
+        updateState(vertexTrgt, vertexInit)
+
+        # Initialize Odometry subscriber:
+        rospy.Subscriber("odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
+
+        # Begin vertex navigation:
+        transitionUGV()
+
+    except:
+
+        # Indicate the node is shut down:
+        print(MSG06)
