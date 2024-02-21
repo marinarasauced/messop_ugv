@@ -217,7 +217,7 @@ if __name__=="__main__":
     vrQy = []
     vrQz = []
     vrQw = []
-    rospy.Subscriber("/vicon/" + UGV_NAME + "/" + UGV_NAME, TransformStamped, callback_vicon_cal)
+    rospy.Subscriber("/vicon/" + UGV_NAME + "/" + UGV_NAME, TransformStamped, callback_vicon_raw)
 
     # Wheel velocities and torques:
     wt = []
