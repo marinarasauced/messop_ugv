@@ -343,6 +343,7 @@ if __name__=="__main__":
     # Initialize node:
     vicon = "/vicon/" + UGV_NAME + "/" + UGV_NAME
     rospy.init_node("messop_ugv")
+    time.sleep(15)
 
     # Create objects:
     calibration = CalibrateUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
@@ -361,13 +362,13 @@ if __name__=="__main__":
     calibration.C1 = getHeading(viconInit, "TransformStamped")
 
     # Initialize publishers and subscribers:
-    rospy.Subscriber(vicon, TransformStamped, viconCallback)
     rospy.Subscriber("messop/messop/interference", Bool, viconInterference)
     u = rospy.Publisher("cmd_vel", Twist, queue_size=10)
     log1 = rospy.Publisher("messop/logger/coefficients", CalibrateUGV, queue_size=10)  
     log2 = rospy.Publisher("messop/logger/global", StateUGV, queue_size=10)
     log3 = rospy.Publisher("messop/logger/vicon", StateUGV, queue_size=10)
     log4 = rospy.Publisher("messop/logger/odom", StateUGV, queue_size=10)
+    rospy.Subscriber(vicon, TransformStamped, viconCallback)
 
     try:
 
