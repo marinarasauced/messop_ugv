@@ -343,7 +343,6 @@ if __name__=="__main__":
     # Initialize node:
     vicon = "/vicon/" + UGV_NAME + "/" + UGV_NAME
     rospy.init_node("messop_ugv")
-    time.sleep(15)
 
     # Create objects:
     calibration = CalibrateUGV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
