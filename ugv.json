@@ -1,5 +1,4 @@
 {
-    "model": "burger",
     "r_lin": 0.5,
     "r_ang": 0.3,
     "tx_error_tolerance": 0.01,
