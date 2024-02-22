@@ -1,0 +1,10 @@
+<launch>
+    <arg name="ugv_name" default="wafflepiX"/>
+    <group ns="$(arg ugv_name)">
+        <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+        <arg name="lds_model" default="$(env LDS_MODEL)" doc="LDS MODEL [LDS-01, LDS-02]"/>
+        <param name="topic_prefix" value="$(arg ugv_name)"/>
+        <param name="model" value="$(arg model)"/>
+        <include file="$(find turtlebot3_bringup)/launch/turtlebot3_robot.launch"/>
+    </group>
+</launch>
