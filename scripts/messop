@@ -177,7 +177,7 @@ def odometryCallback(data):
     timer.odometry = time.time()
 
     # Check if UGV meets occlusion criteria:
-    if timer.odometry > timer.vicon + MAX_TIME_OCCLUDED:
+    if timer.odometry > timer.vicon + MAX_TIME_OCCLUDED or interference.data:
         globalCurr.Tx = odomCurr.Tx + calibration.C5
         globalCurr.Ty = odomCurr.Ty + calibration.C6
         globalCurr.Rz = odomCurr.Rz + calibration.C7
