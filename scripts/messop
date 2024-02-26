@@ -186,7 +186,7 @@ def odometryCallback(data):
         log2.publish(globalCurr)
 
     # Publish data to logger:
-    log4.publish(odomCurr)message
+    log4.publish(odomCurr)
 
 ##################################################################################
 
