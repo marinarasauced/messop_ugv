@@ -6,6 +6,6 @@
     "ty_error_tolerance": 0.02,
     "rz_error_tolerance": 0.01,
     "max_time_occluded": 0.1,
-    "k_p": 7.6092,
+    "k_p": 4.6092,
     "k_d": 2.6779
 }
