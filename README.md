@@ -13,6 +13,15 @@ Download the source for these nodes by running
 
 ```git clone https://github.com/marinarasauced/messop_ugv.git```
 
+Replace the CMakeLists.txt and turtlebot3_diagnostics.cpp in the turtlebot3_bringup package with the modified versions from the move2turtlebot3_bringup directory in the messop_ugv package.
+
+```cp ~/catkin_ws/src/messop_ugv/move2turtlebot3_bringup/CMakeLists.txt ~/catkin_ws/src/turtlebot3/turtlebot3_bringup/CMakeLists.txt```
+```cp ~/catkin_ws/src/messop_ugv/move2turtlebot3_bringup/turtlebot3_diagnostics.cpp ~/catkin_ws/src/turtlebot3/turtlebot3_bringup/src/turtlebot3_diagnostics.cpp```
+
+The modifications to the turtlebot3_diagnostics.cpp require libjsoncpp-dev to be installed.
+
+```sudo apt install libjsoncpp-dev```
+
 Compilete the code with ```catkin_make```.
 
 ## Usage instructions
@@ -20,30 +29,26 @@ Once you have built the package, you can launch the nodes. These nodes utilize l
 
 Onboard the TurtleBot3, run the bringup node.
 
-```roslaunch turtlebot3_bringup turtlebot3_robot.launch```
+```roslaunch messop_ugv messbringup_ugv.launch```
 
-Then, initialize the waypoint navigation and logger.
-
-```rosrun messop_ugv messop```
-```rosrun messop_ugv logger```
+This launch file will initiate the turtlebot3_bringup.launch, the messop node, and the messlogger node. Data is saved to /home/ubuntu/catkin_ws/logs/csv/ by default when the node is shut down.
 
 To control the TurtleBot3, publish a MessToUGV message from the [mess_msgs package](https://github.com/marinarasauced/mess_msgs).
 
 ## Messop node information
 Topics:
-- ```/cmd_vel```: Publishes ```geometry_msgs/Twist``` control input to bringup node.
-- ```/messop/logger/coefficients```: Publishes ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
-- ```/messop/logger/global```: Publishes ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
-- ```/messop/logger/odom```: Publishes ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
-- ```/messop/messop/vertex```: Subscribes to ```mess_msgs/MessToUGV``` vertex and operation type.
-- ```/messop/messop/interference```: Subscribes to ```std_msgs/Bool``` for deliberately ignoring VICON localization.
+- ```/{UGV_NAME}/cmd_vel```: Publishes ```geometry_msgs/Twist``` control input to bringup node.
+- ```/{UGV_NAME}/messop/logger/coefficients```: Publishes ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
+- ```/{UGV_NAME}/messop/logger/global```: Publishes ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
+- ```/{UGV_NAME}/messop/logger/odom```: Publishes ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
+- ```/{UGV_NAME}/messop/messop/vertex```: Subscribes to ```mess_msgs/MessToUGV``` vertex and operation type.
+- ```/{UGV_NAME}/messop/messop/interference```: Subscribes to ```std_msgs/Bool``` for deliberately ignoring VICON localization.
 - ```/vicon/{UGV_NAME}/{UGV_NAME}```: Subscribes to ```geometry_msgs/TransformStamped```VICON localization.
 
 ## Logger node information
 Topics:
-- ```/messop/logger/flag```: Subscribes to ```mess_msgs/MessToUGVLogger``` indicator to log data as CSV files.
-- ```/cmd_vel```: Subscribes to ```geometry_msgs/Twist``` control input from messop node.
-- ```/messop/logger/coefficients```: Subscribes to ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
-- ```/messop/logger/global```: Subscribes to ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
-- ```/messop/logger/odom```: Subscribes to ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
+- ```/{UGV_NAME}/cmd_vel```: Subscribes to ```geometry_msgs/Twist``` control input from messop node.
+- ```/{UGV_NAME}/messop/logger/coefficients```: Subscribes to ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
+- ```/{UGV_NAME}/messop/logger/global```: Subscribes to ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
+- ```/{UGV_NAME}/messop/logger/odom```: Subscribes to ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
 - ```/vicon/{UGV_NAME}/{UGV_NAME}```: Subscribes to ```geometry_msgs/TransformStamped``` VICON localization.
