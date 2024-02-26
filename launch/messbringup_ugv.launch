@@ -16,7 +16,7 @@
     <arg name="lds_model" default="$(env LDS_MODEL)" doc="LDS MODEL [LDS-01, LDS-02]"/>
 
     <group if = "$(eval lds_model == 'LDS-01')">
-        <node pkg="hls_lfcd_lds_driver" type="hlds_laser_publisher" name="turtlebot3_lds" output="screen">
+        <node pkg="hls_lfcd_lds_driver" type="hlds_laser_publisher" name="$(arg ugv_name)_turtlebot3_lds" output="screen">
             <param name="port" value="/dev/ttyUSB0"/>
             <param name="frame_id" value="$(arg set_frame_id)"/>
         </node>
@@ -29,7 +29,7 @@
     
     <node pkg="turtlebot3_bringup" type="turtlebot3_diagnostics" name="$(arg ugv_name)_turtlebot3_diagnostics" output="screen"/>
     
-    <node pkg="messop_ugv" type="messop" name="$(arg ugv_name)_messop" output="screen"/>
+    <node pkg="messop_ugv" type="messop" name="$(arg ugv_name)_messop" output="screen" depends="$(arg ugv_name)_turtlebot3_diagnostics"/>
     <node pkg="messop_ugv" type="logger" name="$(arg ugv_name)_messlogger" output="screen"/>
 
 </launch>
