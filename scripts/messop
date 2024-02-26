@@ -17,7 +17,7 @@ f = open(os.path.dirname(__file__) + "/../config.json")
 f_data = json.load(f)
 
 # Object name in VICON Tracker:
-UGV_NAME = rospy.get_param("topic_prefix", "ugv")
+UGV_NAME = f_data["ugv_name"]
 
 # Hardware specifications for a TurtleBot3s:
 BURGER_MAX_LIN_VEL = 0.22
@@ -186,7 +186,7 @@ def odometryCallback(data):
         log2.publish(globalCurr)
 
     # Publish data to logger:
-    log4.publish(odomCurr)
+    log4.publish(odomCurr)message
 
 ##################################################################################
 
@@ -361,12 +361,12 @@ if __name__=="__main__":
     calibration.C1 = getHeading(viconInit, "TransformStamped")
 
     # Initialize publishers and subscribers:
-    rospy.Subscriber("messop/messop/interference", Bool, viconInterference)
-    u = rospy.Publisher("cmd_vel", Twist, queue_size=10)
-    log1 = rospy.Publisher("messop/logger/coefficients", CalibrateUGV, queue_size=10)  
-    log2 = rospy.Publisher("messop/logger/global", StateUGV, queue_size=10)
-    log3 = rospy.Publisher("messop/logger/vicon", StateUGV, queue_size=10)
-    log4 = rospy.Publisher("messop/logger/odom", StateUGV, queue_size=10)
+    rospy.Subscriber("/" + UGV_NAME + "/messop/messop/interference", Bool, viconInterference)
+    u = rospy.Publisher("/" + UGV_NAME + "/cmd_vel", Twist, queue_size=10)
+    log1 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/coefficients", CalibrateUGV, queue_size=10)  
+    log2 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/global", StateUGV, queue_size=10)
+    log3 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/vicon", StateUGV, queue_size=10)
+    log4 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/odom", StateUGV, queue_size=10)
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
 
     try:
@@ -384,7 +384,7 @@ if __name__=="__main__":
         updateState(vertexTrgt, vertexInit)
 
         # Initialize Odometry subscriber:
-        rospy.Subscriber("odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
+        rospy.Subscriber("/" + UGV_NAME + "/odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
 
         # Begin vertex navigation:
         transitionUGV()
