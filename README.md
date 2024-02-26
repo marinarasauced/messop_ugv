@@ -16,6 +16,7 @@ Download the source for these nodes by running
 Replace the CMakeLists.txt and turtlebot3_diagnostics.cpp in the turtlebot3_bringup package with the modified versions from the move2turtlebot3_bringup directory in the messop_ugv package.
 
 ```cp ~/catkin_ws/src/messop_ugv/move2turtlebot3_bringup/CMakeLists.txt ~/catkin_ws/src/turtlebot3/turtlebot3_bringup/CMakeLists.txt```
+
 ```cp ~/catkin_ws/src/messop_ugv/move2turtlebot3_bringup/turtlebot3_diagnostics.cpp ~/catkin_ws/src/turtlebot3/turtlebot3_bringup/src/turtlebot3_diagnostics.cpp```
 
 The modifications to the turtlebot3_diagnostics.cpp require libjsoncpp-dev to be installed.
