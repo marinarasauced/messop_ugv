@@ -11,7 +11,6 @@
         <param name="baud" value="115200"/>
         <param name="tf_prefix" value="$(arg multi_robot_name)"/>
 
-        <remap from="" to="$(arg ugv_name)/"/>
         <remap from="battery_state" to="$(arg ugv_name)/batter_state"/>
         <remap from="cmd_vel" to="$(arg ugv_name)/cmd_vel"/>
         <remap from="cmd_vel_rc100" to="$(arg ugv_name)/cmd_vel_rc100"/>
@@ -47,7 +46,7 @@
     
     <node pkg="turtlebot3_bringup" type="turtlebot3_diagnostics" name="$(arg ugv_name)_turtlebot3_diagnostics" output="screen"/>
     
-    <node pkg="messop_ugv" type="followline" name="$(arg ugv_name)_followline" output="screen" depends="$(arg ugv_name)_turtlebot3_diagnostics"/>
+    <node pkg="messop_ugv" type="followline" name="$(arg ugv_name)_followline" output="screen"/>
     <node pkg="messop_ugv" type="logger" name="$(arg ugv_name)_messlogger" output="screen"/>
 
 </launch>
