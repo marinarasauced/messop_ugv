@@ -42,6 +42,9 @@
     <group if = "$(eval lds_model == 'LDS-02')">
         <node pkg="ld08_driver" type="ld08_driver" name="$(arg ugv_name)_turtlebot3_lds" output="screen" args="LD08">
             <param name="frame_id" value="$(arg set_frame_id)"/>
+
+            <remap from="rpms" to="$(arg ugv_name)/rpms"/>
+            <remap from="scan" to="$(arg ugv_name)/scan"/>
         </node>
     </group>
     
