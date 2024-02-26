@@ -236,11 +236,11 @@ if __name__=="__main__":
         # Indicate the node is initiated:
         print(MSG01)
 
-        # Wait for flag indicating experiment completion:
-        rospy.wait_for_message("messop/logger/flag", MessToUGVLogger)
+        #
+        rospy.spin()
 
         # Indicate loggings is initiated:
-        print(MSG02)
+        rospy.on_shutdown(lambda: print(MSG02))
 
         # Retrieve current date:
         month = time.strftime("%m")
@@ -252,60 +252,60 @@ if __name__=="__main__":
         name = "calibration_coefficients" + today
         head = ["time (s)", "c1", "c2", "c3", "c4", "c5", "c6", "c7"]
         data = np.array([ct, c1, c2, c3, c4, c5, c6, c7]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log control input:
         name = "control_input" + today
         head = ["time (s)", "v_x (m/s)", "omega_z (rad/s)"]
         data = np.array([ut, uLin, uAng]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log IMU raw:
         name = "imu_raw" + today
         data_imu_raw = ["time (s)", "q_x", "q_y", "q_z", "q_w", "omega_x (rad/s)", "omega_y (rad/s)", "omega_z (rad/s)", "a_x (m/s^2)", "a_y (m/s^2)", "a_z (m/s^2)"]
         data = np.array([imut, imuQx, imuQy]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log odometry calibrated:
         name = "odometry_calibrated" + today
         head = ["time (s)", "x (m)", "y (m)", "psi (rad)"]
         data = np.array([oct, ocTx, ocTy, ocRz]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log odometry raw:
         name = "odometry_raw" + today
         head = ["time (s)", "x (m)", "y (m)", "z (m)", "q_x", "q_y", "q_z", "q_w"]
         data = np.array([ort, orTx, orTy, orTz, orQx, orQy, orQz, orQw]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log onboard state:
         name = "state_onboard" + today
         head = ["time (s)", "x (m)", "y (m)", "psi (rad)"]
         data = np.array([sot, soTx, soTy, soRz]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log VICON calibrated:
         name = "vicon_calibrated" + today
         head = ["time (s)", "x (m)", "y (m)", "psi (rad)"]
         data = np.array([vct, vcTx, vcTy, vcRz]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log VICON raw:
         name = "vicon_raw" + today
         head = ["time (s)", "x (m)", "y (m)", "z (m)", "q_x", "q_y", "q_z", "q_w"]
         data = np.array([vrt, vrTx, vrTy, vrTz, vrQx, vrQy, vrQz, vrQw]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Log wheel velocities and torques:
         name = "wheel_velocities_and_torques" + today
         head = ["time (s)", "left vel", "right vel", "left effort", "right effort"]
         data = np.array([wt, wVl, wVr, wEl, wEr]).T
-        log_data(name, head, data)
+        rospy.on_shutdown(lambda: log_data(name, head, data))
 
         # Indicate logging is complete:
-        print(MSG03)
+        rospy.on_shutdown(lambda: print(MSG03))
 
-    except:
+    except rospy.ROSInterruptException:
 
         # Indicate node is shut down:
         print(MSG04)
