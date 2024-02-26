@@ -13,8 +13,12 @@ import csv
 
 ##################################################################################
 
+# Import JSON data:
+f = open(os.path.dirname(__file__) + "/../config.json")
+f_data = json.load(f)
+
 # Object name in VICON Tracker:
-UGV_NAME = rospy.get_param("topic_prefix", "ugv")
+UGV_NAME = f_data["ugv_name"]
 
 ##################################################################################
 
@@ -40,7 +44,7 @@ Communication ended
 ##################################################################################
 
 def log_data(name, head, data):
-    path = "/home/ubuntu/catkin_ws/logs/"
+    path = "/home/ubuntu/catkin_ws/logs/csv/"
     if not os.path.exists(path):
         os.makedirs(path)
     with open(path + name + ".csv", "w", newline="") as file:
@@ -154,13 +158,13 @@ if __name__=="__main__":
     c5 = []
     c6 = []
     c7 = []
-    rospy.Subscriber("messop/logger/coefficients", CalibrateUGV, callback_calibration_parameters)
+    rospy.Subscriber("/" + UGV_NAME + "/messop/logger/coefficients", CalibrateUGV, callback_calibration_parameters)
 
     # Control input:
     ut = []
     uLin = []
     uAng = []
-    rospy.Subscriber("cmd_vel", Twist, callback_control_input)
+    rospy.Subscriber("/" + UGV_NAME + "/cmd_vel", Twist, callback_control_input)
 
     # IMU raw:
     imut = []
@@ -174,14 +178,14 @@ if __name__=="__main__":
     imuAx = []
     imuAy = []
     imuAz = []
-    rospy.Subscriber("imu", Imu, callback_imu_raw)
+    rospy.Subscriber("/" + UGV_NAME + "/imu", Imu, callback_imu_raw)
 
     # Odometry calibrated:
     oct = []
     ocTx = []
     ocTy = []
     ocRz = []
-    rospy.Subscriber("messop/logger/odom", StateUGV, callback_odom_cal)
+    rospy.Subscriber("/" + UGV_NAME + "/messop/logger/odom", StateUGV, callback_odom_cal)
 
     # Odometry raw:
     ort = []
@@ -192,21 +196,21 @@ if __name__=="__main__":
     orQy = []
     orQz = []
     orQw = []
-    rospy.Subscriber("odom", Odometry, callback_odom_raw)
+    rospy.Subscriber("/" + UGV_NAME + "/odom", Odometry, callback_odom_raw)
 
     # Onboard state:
     sot = []
     soTx = []
     soTy = []
     soRz = []
-    rospy.Subscriber("messop/logger/global", StateUGV, callback_state_onboard)
+    rospy.Subscriber("/" + UGV_NAME + "/messop/logger/global", StateUGV, callback_state_onboard)
     
     # VICON calibrated:
     vct = []
     vcTx = []
     vcTy = []
     vcRz = []
-    rospy.Subscriber("messop/logger/vicon", StateUGV, callback_vicon_cal)
+    rospy.Subscriber("/" + UGV_NAME + "/messop/logger/vicon", StateUGV, callback_vicon_cal)
 
     # VICON raw:
     vrt = []
@@ -225,7 +229,7 @@ if __name__=="__main__":
     wVr = []
     wEl = []
     wEr = []
-    rospy.Subscriber("joint_state", JointState, callback_joints)
+    rospy.Subscriber("/" + UGV_NAME + "/joint_state", JointState, callback_joints)
 
     try:
 
