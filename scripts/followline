@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import Point, TransformStamped, Twist
-from mess_msgs.msg import CalibrateUGV, MessToUGV, StateUGV
+from mess_msgs.msg import CalibrateUGV, MESS2UGV, StateUGV
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Bool
 import numpy as np
@@ -282,7 +282,7 @@ def transitionUGV():
 
         # Wait for new vertex to be published:
         while vertexInit.Tx == vertexTrgt.Tx and vertexInit.Ty == vertexTrgt.Ty and vertexInit.Rz == vertexTrgt.Rz:
-            vertex = rospy.wait_for_message("/" + UGV_NAME + "/messop/messop/vertex", MessToUGV)
+            vertex = rospy.wait_for_message("/" + UGV_NAME + "/messop/messop/vertex", MESS2UGV)
             vertex.Rz = wrapHeading(vertex.Rz)
             updateState(vertexTrgt, vertex)
 
