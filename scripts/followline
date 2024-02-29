@@ -350,6 +350,7 @@ if __name__=="__main__":
     log3 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/vicon", StateUGV, queue_size=10)
     log4 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/odom", StateUGV, queue_size=10)
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
+    rospy.Subscriber(vicon, TransformStamped, viconCallback)
 
     try:
 
@@ -360,6 +361,9 @@ if __name__=="__main__":
         print(MSG02)
         calibrateUGV()
         print(MSG03)
+
+        # Initialize Odometry subscriber:
+        rospy.Subscriber("/" + UGV_NAME + "/odom", Odometry, odometryCallback)  # subscribed to odometry after calibration to ensure VICON feedback is used for both calibration points
 
         # Transition UGV to starting point:
         print(MSG04)
