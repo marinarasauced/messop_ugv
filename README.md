@@ -34,7 +34,7 @@ Onboard the TurtleBot3, run the bringup node.
 
 This launch file will initiate the turtlebot3_bringup.launch, the messop node, and the messlogger node. Data is saved to /home/ubuntu/catkin_ws/logs/csv/ by default when the node is shut down.
 
-To control the TurtleBot3, publish a MessToUGV message from the [mess_msgs package](https://github.com/marinarasauced/mess_msgs).
+To control the TurtleBot3, publish a MESS2UGV message from the [mess_msgs package](https://github.com/marinarasauced/mess_msgs).
 
 ## Messop node information
 Topics:
@@ -42,7 +42,7 @@ Topics:
 - ```/{UGV_NAME}/messop/logger/coefficients```: Publishes ```mess_msgs/CalibrateUGV``` coefficients that calibrate Odometry and SLAM to VICON environment.
 - ```/{UGV_NAME}/messop/logger/global```: Publishes ```mess_msgs/StateUGV``` estimated from VICON, Odometry, and SLAM.
 - ```/{UGV_NAME}/messop/logger/odom```: Publishes ```mess_msgs/StateUGV``` from Odometry and SLAM calibrated to the VICON environment.
-- ```/{UGV_NAME}/messop/messop/vertex```: Subscribes to ```mess_msgs/MessToUGV``` vertex and operation type.
+- ```/{UGV_NAME}/messop/messop/vertex```: Subscribes to ```mess_msgs/MESS2UGV``` vertex and operation type.
 - ```/{UGV_NAME}/messop/messop/interference```: Subscribes to ```std_msgs/Bool``` for deliberately ignoring VICON localization.
 - ```/vicon/{UGV_NAME}/{UGV_NAME}```: Subscribes to ```geometry_msgs/TransformStamped```VICON localization.
 
