@@ -335,6 +335,12 @@ def transitionUGV():
         updateState(vertexInit, vertex)
         updateState(globalInit, globalCurr)
 
+        # Publish flag indicating transition is complete:
+        flag2MESS = Bool()
+        flag2MESS.data = True
+        flag.publish(flag2MESS)
+        
+
 ##################################################################################
 
 if __name__=="__main__":
@@ -370,6 +376,7 @@ if __name__=="__main__":
     log3 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/vicon", StateUGV, queue_size=10)
     log4 = rospy.Publisher("/" + UGV_NAME + "/messop/logger/odom", StateUGV, queue_size=10)
     rospy.Subscriber(vicon, TransformStamped, viconCallback)
+    flag = rospy.Publisher("/" + UGV_NAME + "/messop/messop/flag", Bool, queue_size=10)
 
     try:
 
