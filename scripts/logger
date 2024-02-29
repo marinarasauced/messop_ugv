@@ -5,21 +5,19 @@ from geometry_msgs.msg import TransformStamped, Twist
 from mess_msgs.msg import CalibrateUGV, StateUGV
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Imu, JointState
-from std_msgs.msg import String
 import numpy as np
 import os
-import time
 import json
 import csv
 
 ##################################################################################
 
 # Import JSON data:
-f = open(os.path.dirname(__file__) + "/../config.json")
-f_data = json.load(f)
+f = open(os.path.dirname(__file__) + "/../json/config.json")
+fData = json.load(f)
 
 # Object name in VICON Tracker:
-UGV_NAME = f_data["ugv_name"]
+UGV_NAME = fData["ugv_name"]
 
 ##################################################################################
 
@@ -69,7 +67,7 @@ def append_data(array, data):
 ##################################################################################
 
 def callback_calibration_parameters(data):
-    append_data(ct, time.time())
+    append_data(ct, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(c1, data.C1)
     append_data(c2, data.C2)
     append_data(c3, data.C3)
@@ -79,12 +77,12 @@ def callback_calibration_parameters(data):
     append_data(c7, data.C7)
 
 def callback_control_input(data):
-    append_data(ut, time.time())
+    append_data(ut, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(uLin, data.linear.x)
     append_data(uAng, data.angular.z)
 
 def callback_imu_raw(data):
-    append_data(imut, time.time())
+    append_data(imut, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(imuQx, data.orientation.x)
     append_data(imuQy, data.orientation.y)
     append_data(imuQz, data.orientation.z)
@@ -97,13 +95,13 @@ def callback_imu_raw(data):
     append_data(imuAz, data.linear_acceleration.z)
 
 def callback_odom_cal(data):
-    append_data(oct, time.time())
+    append_data(oct, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(ocTx, data.Tx)
     append_data(ocTy, data.Ty)
     append_data(ocRz, data.Rz)
 
 def callback_odom_raw(data):
-    append_data(ort, time.time())
+    append_data(ort, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(orTx, data.pose.pose.position.x)
     append_data(orTy, data.pose.pose.position.y)
     append_data(orTz, data.pose.pose.position.z)
@@ -113,19 +111,19 @@ def callback_odom_raw(data):
     append_data(orQw, data.pose.pose.orientation.w)
 
 def callback_state_onboard(data):
-    append_data(sot, time.time())
+    append_data(sot, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(soTx, data.Tx)
     append_data(soTy, data.Ty)
     append_data(soRz, data.Rz)
 
 def callback_vicon_cal(data):
-    append_data(vct, time.time())
+    append_data(vct, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(vcTx, data.Tx)
     append_data(vcTy, data.Ty)
     append_data(vcRz, data.Rz)
 
 def callback_vicon_raw(data):
-    append_data(vrt, time.time())
+    append_data(vrt, rospy.get_rostime().nsecs * 10 ** 9)
     append_data(vrTx, data.transform.translation.x)
     append_data(vrTy, data.transform.translation.y)
     append_data(vrTz, data.transform.translation.z)
@@ -135,7 +133,7 @@ def callback_vicon_raw(data):
     append_data(vrQw, data.transform.rotation.w)
 
 def callback_joints(data):
-    append_data(wt, time.time())
+    append_data(wt, rospy.get_rostime().nsecs * 10 ** 9)
     jointV = data.velocity
     jointE = data.effort
     append_data(wVl, jointV[0])
@@ -244,10 +242,11 @@ if __name__=="__main__":
         rospy.on_shutdown(lambda: print(MSG02))
 
         # Retrieve current date:
-        month = time.strftime("%m")
-        day = time.strftime("%d")
-        year = time.strftime("%Y")
-        today = "_" + month + day + year
+        # month = time.strftime("%m")
+        # day = time.strftime("%d")
+        # year = time.strftime("%Y")
+        # today = "_" + month + day + year
+        today = ""
 
         # Log calibration coefficients:
         name = "calibration_coefficients" + today
