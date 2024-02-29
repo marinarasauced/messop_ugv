@@ -148,7 +148,7 @@ def viconCallback(data):
     viconCurr.Rz = wrapHeading(viconCurr.Rz)
 
     # Update timer:
-    timer.vicon = rospy.get_rostime().nsecs * 10 ** 9
+    timer.vicon = rospy.get_time()
 
     # Calibrate onboard Odometry periodically:
     calibrateOdometry()
@@ -173,7 +173,7 @@ def odometryCallback(data):
     odomCurr.Rz = wrapHeading(odomCurr.Rz)
 
     # Update timer:
-    timer.odometry = rospy.get_rostime().nsecs * 10 ** 9
+    timer.odometry = rospy.get_time()
 
     # Check if UGV meets occlusion criteria:
     if timer.odometry > timer.vicon + MAX_TIME_OCCLUDED or interference.data:
@@ -216,8 +216,8 @@ def calibrateUGV():
 
     # Translate linearly in the body-fixed x-direction for one second:
     uLin = R_LIN * UGV_MAX_LIN_VEL; uAng = 0.0
-    timer.calibration = rospy.get_rostime().nsecs * 10 ** 9
-    while rospy.get_rostime().nsecs * 10 ** 9 < timer.calibration + 1:
+    timer.calibration = rospy.get_time()
+    while rospy.get_time() < timer.calibration + 1:
         controlUGV(uLin, uAng)
 
     # Store terminal point:
